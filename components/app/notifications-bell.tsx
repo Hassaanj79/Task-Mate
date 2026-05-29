@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,24 +11,33 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { fetchOrgActivity } from "@/lib/queries";
-import { actionLabel } from "@/lib/activity-text";
+import { fetchNotifications } from "@/lib/queries";
+import { markNotificationsRead } from "@/lib/actions/notifications";
 import { initials, displayName, relativeTime } from "@/lib/format";
 import { useShell } from "@/components/app/shell-context";
 
 export function NotificationsBell() {
   const { activeOrg, activeSlug } = useShell();
-  const { data: events = [] } = useQuery({
-    queryKey: ["org-activity", activeOrg.id, "bell"],
-    queryFn: () => fetchOrgActivity(activeOrg.id, 8),
+  const queryClient = useQueryClient();
+  const { data: notes = [] } = useQuery({
+    queryKey: ["notifications", activeOrg.id],
+    queryFn: () => fetchNotifications(activeOrg.id),
   });
+  const unread = notes.filter((n) => !n.read).length;
+
+  async function onOpen(open: boolean) {
+    if (open && unread > 0) {
+      await markNotificationsRead(activeOrg.id);
+      queryClient.invalidateQueries({ queryKey: ["notifications", activeOrg.id] });
+    }
+  }
 
   return (
-    <Popover>
+    <Popover onOpenChange={onOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative size-8">
           <Bell className="size-[18px]" />
-          {events.length > 0 && (
+          {unread > 0 && (
             <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full bg-primary ring-2 ring-card" />
           )}
         </Button>
@@ -44,38 +53,50 @@ export function NotificationsBell() {
           </Link>
         </div>
         <ScrollArea className="max-h-80">
-          {events.length === 0 ? (
+          {notes.length === 0 ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">
               You&apos;re all caught up.
             </p>
           ) : (
             <div className="flex flex-col p-1">
-              {events.map((e) => (
+              {notes.map((n) => (
                 <Link
-                  key={e.id}
-                  href={`/${activeSlug}/inbox`}
+                  key={n.id}
+                  href={
+                    n.task
+                      ? `/${activeSlug}/projects/${n.task.project_id}/board`
+                      : `/${activeSlug}/inbox`
+                  }
                   className="flex items-start gap-2.5 rounded-md px-2 py-2 transition hover:bg-accent"
                 >
                   <Avatar className="size-7">
-                    <AvatarImage src={e.actor?.avatar_url ?? undefined} />
+                    <AvatarImage src={n.actor?.avatar_url ?? undefined} />
                     <AvatarFallback className="text-[10px]">
-                      {initials(e.actor?.full_name, e.actor?.email)}
+                      {initials(n.actor?.full_name, n.actor?.email)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="text-[12.5px] leading-snug text-secondary-foreground">
                       <span className="font-semibold text-foreground">
-                        {displayName(e.actor)}
+                        {displayName(n.actor)}
                       </span>{" "}
-                      {actionLabel(e.action)}{" "}
+                      mentioned you in{" "}
                       <span className="font-medium text-foreground">
-                        {e.task?.title ?? "a task"}
+                        {n.task?.title ?? "a task"}
                       </span>
                     </p>
+                    {n.body && (
+                      <p className="truncate text-[11.5px] text-muted-foreground">
+                        “{n.body}”
+                      </p>
+                    )}
                     <p className="text-[11px] text-muted-foreground">
-                      {relativeTime(e.created_at)}
+                      {relativeTime(n.created_at)}
                     </p>
                   </div>
+                  {!n.read && (
+                    <span className="mt-1.5 size-[7px] shrink-0 rounded-full bg-primary" />
+                  )}
                 </Link>
               ))}
             </div>

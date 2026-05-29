@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Bold, Italic, List, ListOrdered, Strikethrough } from "lucide-react";
+import { mentionExtension, type MentionMember } from "@/lib/mention";
 
 const baseClass =
   "prose prose-sm dark:prose-invert max-w-none focus:outline-none [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5";
@@ -15,15 +16,20 @@ export function RichTextEditor({
   placeholder,
   onChange,
   className,
+  mentionMembers,
 }: {
   value: JSONContent | null;
   editable?: boolean;
   placeholder?: string;
   onChange?: (json: JSONContent) => void;
   className?: string;
+  mentionMembers?: MentionMember[];
 }) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      ...(mentionMembers ? [mentionExtension(mentionMembers)] : []),
+    ],
     content: value ?? undefined,
     editable,
     immediatelyRender: false,

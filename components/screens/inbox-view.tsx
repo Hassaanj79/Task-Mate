@@ -7,9 +7,12 @@ import { Inbox as InboxIcon, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Topbar } from "@/components/app/topbar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { fetchOrgActivity } from "@/lib/queries";
+import { fetchOrgActivity, fetchNotifications } from "@/lib/queries";
+import { markNotificationsRead } from "@/lib/actions/notifications";
 import { actionLabel } from "@/lib/activity-text";
 import { initials, displayName, relativeTime } from "@/lib/format";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export function InboxView({
   orgSlug,
@@ -19,17 +22,51 @@ export function InboxView({
   orgId: string;
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<"all" | "mentions">("all");
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "mentions">("mentions");
 
   const { data: events = [] } = useQuery({
     queryKey: ["org-activity", orgId, "inbox"],
     queryFn: () => fetchOrgActivity(orgId, 40),
+    enabled: filter === "all",
   });
 
-  const shown =
-    filter === "mentions"
-      ? events.filter((e) => e.action === "commented")
-      : events;
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications", orgId],
+    queryFn: () => fetchNotifications(orgId),
+  });
+
+  // Opening the Mentions tab clears the unread badge.
+  useEffect(() => {
+    if (filter === "mentions" && notifications.some((n) => !n.read)) {
+      markNotificationsRead(orgId).then(() =>
+        queryClient.invalidateQueries({ queryKey: ["notifications", orgId] }),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, notifications.length]);
+
+  const mentionRows = notifications.map((n) => ({
+    id: n.id,
+    actor: n.actor,
+    action: "mentioned you in",
+    title: n.task?.title ?? "a task",
+    projectId: n.task?.project_id ?? null,
+    created_at: n.created_at,
+    body: n.body,
+  }));
+
+  const activityRows = events.map((e) => ({
+    id: e.id,
+    actor: e.actor,
+    action: actionLabel(e.action),
+    title: e.task?.title ?? "a task",
+    projectId: e.task?.project_id ?? null,
+    created_at: e.created_at,
+    body: null as string | null,
+  }));
+
+  const shown = filter === "mentions" ? mentionRows : activityRows;
 
   return (
     <div className="flex h-full flex-col">
@@ -40,8 +77,8 @@ export function InboxView({
       <div className="flex items-center gap-1.5 border-b bg-card px-6 py-2.5">
         {(
           [
-            ["all", "All"],
-            ["mentions", "Comments"],
+            ["mentions", "Mentions"],
+            ["all", "All activity"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -78,8 +115,8 @@ export function InboxView({
               <button
                 key={e.id}
                 onClick={() =>
-                  e.task &&
-                  router.push(`/${orgSlug}/projects/${e.task.project_id}/board`)
+                  e.projectId &&
+                  router.push(`/${orgSlug}/projects/${e.projectId}/board`)
                 }
                 className="flex w-full items-start gap-3 rounded-[var(--radius)] px-3 py-3 text-left transition hover:bg-accent"
               >
@@ -94,11 +131,14 @@ export function InboxView({
                     <span className="font-semibold text-foreground">
                       {displayName(e.actor)}
                     </span>{" "}
-                    {actionLabel(e.action)}{" "}
-                    <span className="font-medium text-foreground">
-                      {e.task?.title ?? "a task"}
-                    </span>
+                    {e.action}{" "}
+                    <span className="font-medium text-foreground">{e.title}</span>
                   </p>
+                  {e.body && (
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      “{e.body}”
+                    </p>
+                  )}
                   <p className="text-[11.5px] text-muted-foreground">
                     {relativeTime(e.created_at)}
                   </p>

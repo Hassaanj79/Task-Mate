@@ -33,16 +33,17 @@ export default async function OrgLayout({
       .eq("assignee_id", user!.id)
       .is("parent_id", null),
     supabase
-      .from("activity_log")
+      .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("org_id", org.id)
-      .neq("actor_id", user!.id),
+      .eq("read", false),
   ]);
 
   return (
     <Shell
       data={{
         profile: profile as Profile | null,
+        currentUserId: user!.id,
         orgs,
         activeSlug: orgSlug,
         activeOrg: org,

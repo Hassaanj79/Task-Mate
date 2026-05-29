@@ -11,6 +11,8 @@ import { fetchComments, qk } from "@/lib/queries";
 import { addComment, deleteComment } from "@/lib/actions/comments";
 import { createClient } from "@/lib/supabase/client";
 import { initials, displayName, relativeTime } from "@/lib/format";
+import { useProject } from "@/components/project/project-context";
+import { extractMentionIds } from "@/lib/mention";
 import { toast } from "sonner";
 
 const EMPTY: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
@@ -27,6 +29,8 @@ export function CommentThread({
   canComment: boolean;
 }) {
   const queryClient = useQueryClient();
+  const { members } = useProject();
+  const mentionMembers = members.map((m) => ({ id: m.id, label: displayName(m) }));
   const [draft, setDraft] = useState<JSONContent>(EMPTY);
   const [key, setKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +64,7 @@ export function CommentThread({
   async function submit() {
     if (isEmpty(draft)) return;
     setSubmitting(true);
-    const res = await addComment(orgId, taskId, draft);
+    const res = await addComment(orgId, taskId, draft, extractMentionIds(draft));
     setSubmitting(false);
     if (res.error) {
       toast.error(res.error);
@@ -103,7 +107,11 @@ export function CommentThread({
               )}
             </div>
             <div className="mt-0.5 rounded-md bg-muted/50 px-3 py-2">
-              <RichTextEditor value={c.body as JSONContent} editable={false} />
+              <RichTextEditor
+                value={c.body as JSONContent}
+                editable={false}
+                mentionMembers={mentionMembers}
+              />
             </div>
           </div>
         </div>
@@ -118,8 +126,9 @@ export function CommentThread({
           <RichTextEditor
             key={key}
             value={EMPTY}
-            placeholder="Write a comment…"
+            placeholder="Write a comment…  (@ to mention)"
             onChange={setDraft}
+            mentionMembers={mentionMembers}
           />
           <div className="flex justify-end">
             <Button size="sm" onClick={submit} disabled={submitting}>

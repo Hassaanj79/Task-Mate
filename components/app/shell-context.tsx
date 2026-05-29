@@ -6,6 +6,7 @@ import type { OrgRole, Profile, Project } from "@/lib/database.types";
 
 export type ShellData = {
   profile: Profile | null;
+  currentUserId: string;
   orgs: MembershipOrg[];
   activeSlug: string;
   activeOrg: MembershipOrg;

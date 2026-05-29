@@ -3,6 +3,7 @@
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/app/sidebar";
 import { SearchPalette } from "@/components/app/search-palette";
+import { NotificationsListener } from "@/components/app/notifications-listener";
 import { ShellProvider, useShell, type ShellData } from "@/components/app/shell-context";
 
 export function Shell({
@@ -41,6 +42,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       </main>
 
       <SearchPalette />
+      <NotificationsListener />
     </div>
   );
 }

@@ -133,3 +133,12 @@
     @apply font-sans;
   }
 }
+
+/* @mention chips inside comments */
+.tm-mention {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: 5px;
+  padding: 0 4px;
+  font-weight: 600;
+}

@@ -114,6 +114,19 @@ export type Attachment = {
   created_at: string;
 }
 
+export type Notification = {
+  id: string;
+  org_id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  type: string;
+  task_id: string | null;
+  comment_id: string | null;
+  body: string | null;
+  read: boolean;
+  created_at: string;
+};
+
 export type ActivityLog = {
   id: string;
   org_id: string;
@@ -209,6 +222,14 @@ export type Database = {
         Row: Row<ActivityLog>;
         Insert: Insert<ActivityLog, "id" | "task_id" | "actor_id" | "meta" | "created_at">;
         Update: Update<ActivityLog>;
+      };
+      notifications: {
+        Row: Row<Notification>;
+        Insert: Insert<
+          Notification,
+          "id" | "actor_id" | "task_id" | "comment_id" | "body" | "read" | "created_at"
+        >;
+        Update: Update<Notification>;
       };
     }>;
     Views: Record<string, never>;
