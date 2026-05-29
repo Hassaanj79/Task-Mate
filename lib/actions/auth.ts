@@ -34,6 +34,7 @@ export async function signUpWithPassword(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
+  const redirectTo = String(formData.get("redirect") ?? "/") || "/";
 
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 6)
@@ -45,17 +46,20 @@ export async function signUpWithPassword(
     password,
     options: {
       data: { full_name: fullName || null },
-      emailRedirectTo: `${siteUrl()}/auth/callback`,
+      // After email confirmation, land back on wherever they came from
+      // (e.g. an /invite/[token] page) so they can join the inviting org.
+      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
     },
   });
   if (error) return { error: error.message };
 
-  // If email confirmation is required there is no session yet.
+  // If email confirmation is required there is no session yet — preserve the
+  // destination so the post-confirm sign-in returns to the invite.
   if (!data.session) {
-    redirect("/login?check_email=1");
+    redirect(`/login?check_email=1&redirect=${encodeURIComponent(redirectTo)}`);
   }
 
-  redirect("/");
+  redirect(redirectTo);
 }
 
 export async function signInWithGoogle(formData: FormData) {
