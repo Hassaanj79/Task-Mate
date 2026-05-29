@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type JSONContent } from "@tiptap/react";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -119,6 +119,7 @@ export function TaskPanel() {
     <Sheet open={open} onOpenChange={(v) => !v && setOpenTaskId(null)}>
       <SheetContent
         side="right"
+        showCloseButton={false}
         className="w-full gap-0 overflow-y-auto p-0 sm:w-[52vw] sm:min-w-[560px] sm:max-w-none"
       >
         {/* Always present so the dialog is labelled even while loading. */}
@@ -153,33 +154,44 @@ export function TaskPanel() {
                     ))}
                   </SelectContent>
                 </Select>
-                {writable && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This permanently deletes the task and its subtasks,
-                          comments, and attachments.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={onDelete}
-                          className="bg-destructive text-white hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+                <div className="flex items-center gap-1">
+                  {writable && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-8">
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete task?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This permanently deletes the task and its subtasks,
+                            comments, and attachments.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={onDelete}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => setOpenTaskId(null)}
+                    aria-label="Close"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
               </div>
             </SheetHeader>
 
