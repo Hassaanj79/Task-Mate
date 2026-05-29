@@ -14,6 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/board/kanban-column";
 import { TaskCard } from "@/components/board/task-card";
+import { AddColumn } from "@/components/board/add-column";
 import { useProject } from "@/components/project/project-context";
 import {
   fetchStatuses,
@@ -23,8 +24,20 @@ import {
   type TaskWithLabels,
 } from "@/lib/queries";
 import { moveTask } from "@/lib/actions/tasks";
-import { POSITION_STEP } from "@/lib/constants";
+import { POSITION_STEP, PRIORITIES } from "@/lib/constants";
+import { canWrite } from "@/lib/rbac";
+import { displayName } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import type { TaskStatus } from "@/lib/database.types";
 
@@ -35,10 +48,25 @@ export function BoardView({
   initialStatuses: TaskStatus[];
   initialTasks: TaskWithLabels[];
 }) {
-  const { orgId, projectId, members, addTick } = useProject();
+  const { orgId, projectId, members, role, addTick } = useProject();
   const queryClient = useQueryClient();
+  const writable = canWrite(role);
   const [activeTask, setActiveTask] = useState<TaskWithLabels | null>(null);
   const [addingStatusId, setAddingStatusId] = useState<string | null>(null);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [assignee, setAssignee] = useState("all");
+  const [priority, setPriority] = useState("all");
+  const [labelId, setLabelId] = useState("all");
+  const filtersActive =
+    search !== "" || assignee !== "all" || priority !== "all" || labelId !== "all";
+  function clearFilters() {
+    setSearch("");
+    setAssignee("all");
+    setPriority("all");
+    setLabelId("all");
+  }
 
   const { data: statuses = [] } = useQuery({
     queryKey: qk.statuses(projectId),
@@ -67,16 +95,30 @@ export function BoardView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addTick]);
 
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (search && !t.title.toLowerCase().includes(search.toLowerCase()))
+        return false;
+      if (assignee !== "all") {
+        if (assignee === "none" ? t.assignee_id : t.assignee_id !== assignee)
+          return false;
+      }
+      if (priority !== "all" && t.priority !== priority) return false;
+      if (labelId !== "all" && !t.label_ids.includes(labelId)) return false;
+      return true;
+    });
+  }, [tasks, search, assignee, priority, labelId]);
+
   const byStatus = useMemo(() => {
     const map = new Map<string, TaskWithLabels[]>();
     for (const s of statuses) map.set(s.id, []);
     const unassigned: TaskWithLabels[] = [];
-    for (const t of [...tasks].sort((a, b) => a.position - b.position)) {
+    for (const t of [...filteredTasks].sort((a, b) => a.position - b.position)) {
       if (t.status_id && map.has(t.status_id)) map.get(t.status_id)!.push(t);
       else unassigned.push(t);
     }
     return { map, unassigned };
-  }, [statuses, tasks]);
+  }, [statuses, filteredTasks]);
 
   function onDragStart(e: DragStartEvent) {
     const t = tasks.find((x) => x.id === e.active.id);
@@ -158,37 +200,93 @@ export function BoardView({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      <div className="flex h-full gap-4 overflow-x-auto p-6">
-        {statuses.map((status) => (
-          <KanbanColumn
-            key={status.id}
-            status={status}
-            tasks={byStatus.map.get(status.id) ?? []}
-            labels={labels}
-            members={members}
-            adding={addingStatusId === status.id}
-            onStartAdd={(id) => setAddingStatusId(id)}
-            onCloseAdd={() => setAddingStatusId(null)}
-          />
-        ))}
-        {statuses.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No board columns. Recreate the project to seed default statuses.
-          </p>
+    <div className="flex h-full flex-col">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 border-b px-6 py-2.5">
+        <Input
+          placeholder="Filter tasks…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 max-w-[200px]"
+        />
+        <Select value={assignee} onValueChange={setAssignee}>
+          <SelectTrigger className="h-8 w-36">
+            <SelectValue placeholder="Assignee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Anyone</SelectItem>
+            <SelectItem value="none">Unassigned</SelectItem>
+            {members.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {displayName(m)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="h-8 w-36">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any priority</SelectItem>
+            {PRIORITIES.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={labelId} onValueChange={setLabelId}>
+          <SelectTrigger className="h-8 w-36">
+            <SelectValue placeholder="Label" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any label</SelectItem>
+            {labels.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {filtersActive && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="size-3.5" /> Clear
+          </Button>
         )}
       </div>
 
-      <DragOverlay>
-        {activeTask ? (
-          <TaskCard task={activeTask} labels={labels} members={members} overlay />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-6">
+          {statuses.map((status) => (
+            <KanbanColumn
+              key={status.id}
+              status={status}
+              tasks={byStatus.map.get(status.id) ?? []}
+              labels={labels}
+              members={members}
+              adding={addingStatusId === status.id}
+              onStartAdd={(id) => setAddingStatusId(id)}
+              onCloseAdd={() => setAddingStatusId(null)}
+            />
+          ))}
+          {writable && <AddColumn count={statuses.length} />}
+          {statuses.length === 0 && !writable && (
+            <p className="text-sm text-muted-foreground">No board columns yet.</p>
+          )}
+        </div>
+
+        <DragOverlay>
+          {activeTask ? (
+            <TaskCard task={activeTask} labels={labels} members={members} overlay />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

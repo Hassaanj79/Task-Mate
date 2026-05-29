@@ -66,5 +66,16 @@ export const LABEL_COLORS = [
   "oklch(0.62 0.02 260)",
 ];
 
+// Status (board column) hues.
+export const STATUS_COLORS = [
+  "oklch(0.62 0.02 260)",
+  "oklch(0.6 0.14 300)",
+  "oklch(0.62 0.13 250)",
+  "oklch(0.7 0.13 70)",
+  "oklch(0.64 0.13 155)",
+  "oklch(0.65 0.15 350)",
+  "oklch(0.6 0.18 25)",
+];
+
 // Gap used when computing fractional positions for board ordering.
 export const POSITION_STEP = 1000;
