@@ -119,8 +119,10 @@ export function TaskPanel() {
     <Sheet open={open} onOpenChange={(v) => !v && setOpenTaskId(null)}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-y-auto p-0 sm:max-w-2xl"
+        className="w-full gap-0 overflow-y-auto p-0 sm:w-[52vw] sm:min-w-[560px] sm:max-w-none"
       >
+        {/* Always present so the dialog is labelled even while loading. */}
+        <SheetTitle className="sr-only">Task details</SheetTitle>
         {isLoading || !task ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -128,7 +130,6 @@ export function TaskPanel() {
         ) : (
           <>
             <SheetHeader className="border-b">
-              <SheetTitle className="sr-only">Task details</SheetTitle>
               <div className="flex items-center justify-between gap-2">
                 <Select
                   value={task.status_id ?? undefined}
