@@ -3,6 +3,7 @@ import { getActiveOrg, getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ProjectGrid } from "@/components/project/project-grid";
 import { Topbar } from "@/components/app/topbar";
+import { DashboardPanels } from "@/components/screens/dashboard-panels";
 import type { Profile } from "@/lib/database.types";
 
 export default async function OrgDashboard({
@@ -14,29 +15,52 @@ export default async function OrgDashboard({
   const [org, profile] = await Promise.all([getActiveOrg(orgSlug), getProfile()]);
 
   const supabase = await createClient();
-  const [{ data: projects }, { data: statuses }, { data: taskRows }, { data: memberRows }] =
-    await Promise.all([
-      supabase
-        .from("projects")
-        .select("*")
-        .eq("org_id", org.id)
-        .is("parent_id", null)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("task_statuses")
-        .select("id, project_id, position")
-        .eq("org_id", org.id),
-      supabase
-        .from("tasks")
-        .select("project_id, status_id, assignee_id, due_date")
-        .eq("org_id", org.id)
-        .is("parent_id", null)
-        .is("archived_at", null),
-      supabase
-        .from("organization_members")
-        .select("profiles(*)")
-        .eq("org_id", org.id),
-    ]);
+  const [
+    { data: projects },
+    { data: statuses },
+    { data: taskRows },
+    { data: memberRows },
+    { data: myTaskRows },
+    { data: activityRows },
+  ] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("*")
+      .eq("org_id", org.id)
+      .is("parent_id", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("task_statuses")
+      .select("id, project_id, position, name, color")
+      .eq("org_id", org.id),
+    supabase
+      .from("tasks")
+      .select("project_id, status_id, assignee_id, due_date")
+      .eq("org_id", org.id)
+      .is("parent_id", null)
+      .is("archived_at", null),
+    supabase
+      .from("organization_members")
+      .select("profiles(*)")
+      .eq("org_id", org.id),
+    supabase
+      .from("tasks")
+      .select("id, title, due_date, status_id, project_id, projects(name, color, icon)")
+      .eq("org_id", org.id)
+      .eq("assignee_id", profile?.id ?? "")
+      .is("parent_id", null)
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(8),
+    supabase
+      .from("activity_log")
+      .select(
+        "id, action, created_at, actor:profiles!activity_log_actor_id_fkey(*), task:tasks(title, project_id)",
+      )
+      .eq("org_id", org.id)
+      .order("created_at", { ascending: false })
+      .limit(6),
+  ]);
 
   // Each project's "done" status = the column with the highest position.
   const doneByProject = new Map<string, { id: string; position: number }>();
@@ -97,6 +121,44 @@ export default async function OrgDashboard({
     };
   });
 
+  // "My upcoming tasks" — assigned to me, not done.
+  const statusColorById = new Map(
+    (statuses ?? []).map((s) => [s.id, s.color] as const),
+  );
+  const upcoming = (myTaskRows ?? [])
+    .filter((t) => t.status_id !== doneByProject.get(t.project_id)?.id)
+    .slice(0, 5)
+    .map((t) => {
+      const proj = t.projects as unknown as {
+        name: string;
+        color: string | null;
+        icon: string | null;
+      } | null;
+      return {
+        id: t.id,
+        title: t.title,
+        due: t.due_date,
+        projectId: t.project_id,
+        projectName: proj?.name ?? "Project",
+        projectColor: proj?.color ?? null,
+        projectIcon: proj?.icon ?? null,
+        statusColor: t.status_id ? statusColorById.get(t.status_id) ?? null : null,
+      };
+    });
+
+  const activity = (activityRows ?? []).map((a) => {
+    const actor = a.actor as unknown as Profile | null;
+    const task = a.task as unknown as { title: string; project_id: string } | null;
+    return {
+      id: a.id,
+      action: a.action,
+      created_at: a.created_at,
+      actor,
+      taskTitle: task?.title ?? "a task",
+      projectId: task?.project_id ?? null,
+    };
+  });
+
   return (
     <div className="flex h-full flex-col">
       <Topbar
@@ -118,6 +180,7 @@ export default async function OrgDashboard({
           }}
           projects={projectsWithStats}
         />
+        <DashboardPanels orgSlug={orgSlug} upcoming={upcoming} activity={activity} />
       </div>
       </div>
     </div>
