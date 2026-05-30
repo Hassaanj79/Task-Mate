@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { Loader2, CheckSquare } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { createOrg } from "@/lib/actions/orgs";
+import { LogoMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,9 +22,7 @@ export function CreateFirstOrg() {
     <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CheckSquare className="size-5" />
-          </div>
+          <LogoMark className="mb-2 size-9" />
           <CardTitle>Create your first workspace</CardTitle>
           <CardDescription>
             A workspace holds your team&apos;s projects and tasks.

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, Check } from "lucide-react";
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   signInWithPassword,
@@ -13,17 +13,7 @@ import {
   type AuthState,
 } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
-
-function Logo() {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary text-primary-foreground shadow-sm">
-        <Check className="size-[18px]" strokeWidth={2.6} />
-      </span>
-      <span className="text-[19px] font-extrabold tracking-tight">Task Mate</span>
-    </div>
-  );
-}
+import { Logo } from "@/components/brand/logo";
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
