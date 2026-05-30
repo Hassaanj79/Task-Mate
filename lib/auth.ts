@@ -36,20 +36,26 @@ export type MembershipOrg = Organization & { role: OrgRole };
 
 // All orgs the current user belongs to, with their role in each.
 export const getUserOrgs = cache(async (): Promise<MembershipOrg[]> => {
+  const user = await getUser();
+  if (!user) return [];
   const supabase = await createClient();
+  // RLS lets you read co-members' rows too, so filter to your own memberships.
   const { data, error } = await supabase
     .from("organization_members")
     .select("role, organizations(*)")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
   if (error || !data) return [];
 
-  return data
-    .filter((row) => row.organizations)
-    .map((row) => ({
-      ...(row.organizations as unknown as Organization),
-      role: row.role as OrgRole,
-    }));
+  // Dedupe by org id (a user could have more than one membership row).
+  const byId = new Map<string, MembershipOrg>();
+  for (const row of data) {
+    if (!row.organizations) continue;
+    const org = row.organizations as unknown as Organization;
+    if (!byId.has(org.id)) byId.set(org.id, { ...org, role: row.role as OrgRole });
+  }
+  return [...byId.values()];
 });
 
 // Resolve the active org by slug from the URL. Redirects if the user
