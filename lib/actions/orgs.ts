@@ -47,12 +47,38 @@ export async function updateOrg(orgId: string, slug: string, formData: FormData)
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Name is required." };
 
+  const str = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v === "" ? null : v;
+  };
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("organizations")
-    .update({ name })
+    .update({
+      name,
+      email: str("email"),
+      phone: str("phone"),
+      address: str("address"),
+      website: str("website"),
+      business_type: str("business_type"),
+      company_size: str("company_size"),
+      description: str("description"),
+    })
     .eq("id", orgId);
 
+  if (error) return { error: error.message };
+  revalidatePath(`/${slug}`, "layout");
+  return { error: null };
+}
+
+export async function setOrgLogo(orgId: string, slug: string, logoUrl: string | null) {
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("organizations")
+    .update({ logo_url: logoUrl })
+    .eq("id", orgId);
   if (error) return { error: error.message };
   revalidatePath(`/${slug}`, "layout");
   return { error: null };

@@ -13,6 +13,10 @@ export type Profile = {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
+  phone: string | null;
+  job_title: string | null;
+  bio: string | null;
+  timezone: string | null;
   created_at: string;
 }
 
@@ -21,6 +25,13 @@ export type Organization = {
   name: string;
   slug: string;
   logo_url: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
+  business_type: string | null;
+  company_size: string | null;
+  description: string | null;
   created_by: string;
   created_at: string;
 }
@@ -155,12 +166,27 @@ export type Database = {
     Tables: AddRelationships<{
       profiles: {
         Row: Row<Profile>;
-        Insert: Insert<Profile, "full_name" | "avatar_url" | "created_at">;
+        Insert: Insert<
+          Profile,
+          "full_name" | "avatar_url" | "phone" | "job_title" | "bio" | "timezone" | "created_at"
+        >;
         Update: Update<Profile>;
       };
       organizations: {
         Row: Row<Organization>;
-        Insert: Insert<Organization, "id" | "logo_url" | "created_at">;
+        Insert: Insert<
+          Organization,
+          | "id"
+          | "logo_url"
+          | "email"
+          | "phone"
+          | "address"
+          | "website"
+          | "business_type"
+          | "company_size"
+          | "description"
+          | "created_at"
+        >;
         Update: Update<Organization>;
       };
       organization_members: {

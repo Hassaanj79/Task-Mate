@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Users, BarChart3, Tag } from "lucide-react";
+import { Settings, Users, BarChart3, Tag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Topbar } from "@/components/app/topbar";
 import { useShell } from "@/components/app/shell-context";
@@ -15,6 +15,7 @@ export function SettingsLayout({ children }: { children: React.ReactNode }) {
   const base = `/${activeSlug}/settings`;
 
   const items = [
+    { id: "profile", label: "My profile", icon: User, href: `${base}/profile` },
     { id: "general", label: "General", icon: Settings, href: `${base}/general` },
     ...(canManageMembers(role)
       ? [{ id: "members", label: "Members", icon: Users, href: `${base}/members` }]

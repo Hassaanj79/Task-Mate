@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, User, Settings } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,9 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { initials, displayName } from "@/lib/format";
+import { useShell } from "@/components/app/shell-context";
 import type { Profile } from "@/lib/database.types";
 
 export function UserMenu({ profile }: { profile: Profile | null }) {
+  const { activeSlug } = useShell();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="outline-none">
@@ -32,6 +35,17 @@ export function UserMenu({ profile }: { profile: Profile | null }) {
             {profile?.email}
           </span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`/${activeSlug}/settings/profile`} className="cursor-pointer">
+            <User className="size-4" /> My profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/${activeSlug}/settings/general`} className="cursor-pointer">
+            <Settings className="size-4" /> Workspace settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="text-destructive focus:text-destructive">
           <form action={signOut}>
