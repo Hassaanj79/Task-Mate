@@ -86,13 +86,23 @@ function guessMap(headers: string[], source: string): Record<FieldKey, number> {
   return m;
 }
 
-export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: string }) {
+export function ImportWizard({
+  orgId,
+  orgSlug,
+  projects,
+}: {
+  orgId: string;
+  orgSlug: string;
+  projects: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [source, setSource] = useState("notion");
   const [fileName, setFileName] = useState("");
+  const [dest, setDest] = useState<"new" | "existing">("new");
+  const [existingId, setExistingId] = useState("");
   const [projectName, setProjectName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
@@ -108,7 +118,14 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
     setFileName(file.name);
     setHeaders(h);
     setRows(r);
-    if (!projectName) setProjectName(file.name.replace(/\.csv$/i, ""));
+    if (!projectName) {
+      // Notion exports as "Name <32-hex id>.csv" — drop the id.
+      const clean = file.name
+        .replace(/\.csv$/i, "")
+        .replace(/\s+[0-9a-f]{32}$/i, "")
+        .trim();
+      setProjectName(clean);
+    }
     setMap(guessMap(h, source));
   }
 
@@ -126,6 +143,14 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
       toast.error("Pick the Title column.");
       return;
     }
+    if (dest === "new" && !projectName.trim()) {
+      toast.error("Enter a project name.");
+      return;
+    }
+    if (dest === "existing" && !existingId) {
+      toast.error("Pick a project.");
+      return;
+    }
     const payload: ImportRow[] = rows.map((r) => ({
       title: r[map.title] ?? "",
       status: map.status >= 0 ? r[map.status] : undefined,
@@ -135,8 +160,12 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
       labels: map.labels >= 0 ? r[map.labels] : undefined,
       description: map.description >= 0 ? r[map.description] : undefined,
     }));
+    const destination =
+      dest === "new"
+        ? ({ mode: "new", name: projectName } as const)
+        : ({ mode: "existing", projectId: existingId } as const);
     start(async () => {
-      const res = await importTasks(orgId, orgSlug, projectName, payload);
+      const res = await importTasks(orgId, orgSlug, destination, payload);
       if (res?.error) {
         toast.error(res.error);
         return;
@@ -190,11 +219,47 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
 
       {headers.length > 0 && (
         <>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-[12.5px] font-semibold text-secondary-foreground">
-              Project name
+              Add tasks to
             </Label>
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="max-w-sm" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={dest} onValueChange={(v) => setDest(v as "new" | "existing")}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">A new project</SelectItem>
+                  <SelectItem value="existing" disabled={projects.length === 0}>
+                    An existing project
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {dest === "new" ? (
+                <Input
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="New project name"
+                  className="max-w-xs"
+                />
+              ) : (
+                <Select value={existingId} onValueChange={setExistingId}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Pick a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {dest === "existing" && (
+              <p className="text-[11.5px] text-muted-foreground">
+                Reuses the project&apos;s existing columns; any new statuses are added.
+              </p>
+            )}
           </div>
 
           {/* Mapping */}
@@ -257,7 +322,13 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
             </div>
           </div>
 
-          <Button onClick={runImport} disabled={pending || !projectName.trim()}>
+          <Button
+            onClick={runImport}
+            disabled={
+              pending ||
+              (dest === "new" ? !projectName.trim() : !existingId)
+            }
+          >
             {pending && <Loader2 className="size-4 animate-spin" />}
             Import {rows.length} tasks
           </Button>

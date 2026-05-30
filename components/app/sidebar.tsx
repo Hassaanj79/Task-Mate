@@ -290,7 +290,7 @@ function SidebarProjectItem({
     <>
     <div
       className={cn(
-        "group relative flex items-center rounded-md transition",
+        "group relative flex min-w-0 items-center rounded-md transition",
         active
           ? "bg-accent font-semibold text-foreground"
           : "font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground",
@@ -330,7 +330,7 @@ function SidebarProjectItem({
       {writable && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition hover:bg-background/60 hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100">
+            <button className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition hover:bg-background/60 hover:text-foreground group-hover:text-muted-foreground data-[state=open]:text-foreground">
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>

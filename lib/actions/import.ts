@@ -53,31 +53,45 @@ function parseDue(v?: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+export type ImportDest =
+  | { mode: "new"; name: string }
+  | { mode: "existing"; projectId: string };
+
 export async function importTasks(
   orgId: string,
   orgSlug: string,
-  projectName: string,
+  dest: ImportDest,
   rows: ImportRow[],
 ) {
   const user = await requireUser();
-  if (!projectName.trim()) return { error: "Project name is required." };
   if (rows.length === 0) return { error: "No rows to import." };
 
   const supabase = await createClient();
 
-  // 1. Project
-  const { data: project, error: pErr } = await supabase
-    .from("projects")
-    .insert({ org_id: orgId, name: projectName.trim(), created_by: user.id })
-    .select("id")
-    .single();
-  if (pErr || !project) return { error: pErr?.message ?? "Could not create project." };
-  const projectId = project.id;
+  // 1. Resolve destination project (create new, or use existing).
+  let projectId: string;
+  if (dest.mode === "new") {
+    if (!dest.name.trim()) return { error: "Project name is required." };
+    const { data: project, error: pErr } = await supabase
+      .from("projects")
+      .insert({ org_id: orgId, name: dest.name.trim(), created_by: user.id })
+      .select("id")
+      .single();
+    if (pErr || !project) return { error: pErr?.message ?? "Could not create project." };
+    projectId = project.id;
+  } else {
+    projectId = dest.projectId;
+  }
 
-  // 2. Lookups: members (assignee match) + existing labels
-  const [{ data: memberRows }, { data: existingLabels }] = await Promise.all([
+  // 2. Lookups: members (assignee match), existing labels, existing statuses
+  const [{ data: memberRows }, { data: existingLabels }, { data: existingStatuses }] = await Promise.all([
     supabase.from("organization_members").select("profiles(id, email, full_name)").eq("org_id", orgId),
     supabase.from("labels").select("id, name").eq("org_id", orgId),
+    supabase
+      .from("task_statuses")
+      .select("id, name, position")
+      .eq("project_id", projectId)
+      .order("position", { ascending: true }),
   ]);
   const members = (memberRows ?? [])
     .map((r) => r.profiles as unknown as { id: string; email: string; full_name: string | null })
@@ -91,9 +105,13 @@ export async function importTasks(
   const labelByName = new Map<string, string>();
   for (const l of existingLabels ?? []) labelByName.set(l.name.toLowerCase().trim(), l.id);
 
-  // 3. Status map — create columns on demand, in first-seen order.
+  // 3. Status map — reuse the project's existing columns; create missing ones.
   const statusByName = new Map<string, string>();
   let statusPos = 0;
+  for (const s of existingStatuses ?? []) {
+    statusByName.set(s.name.toLowerCase().trim(), s.id);
+    statusPos = Math.max(statusPos, s.position + 1);
+  }
   async function ensureStatus(name: string): Promise<string | null> {
     const key = name.toLowerCase().trim();
     if (!key) return null;
