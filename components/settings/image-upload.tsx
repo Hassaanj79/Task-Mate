@@ -67,12 +67,13 @@ export function ImageUpload({
         className={cn(
           "flex size-16 items-center justify-center overflow-hidden text-xl font-bold text-white",
           shape === "circle" ? "rounded-full" : "rounded-2xl",
+          url && "border bg-transparent",
         )}
-        style={{ backgroundColor: tint ?? "var(--primary)" }}
+        style={url ? undefined : { backgroundColor: tint ?? "var(--primary)" }}
       >
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="" className="size-full object-cover" />
+          <img src={url} alt="" className="size-full object-contain" />
         ) : (
           fallback
         )}

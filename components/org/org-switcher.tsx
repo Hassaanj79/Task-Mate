@@ -44,12 +44,7 @@ export function OrgSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex w-full items-center gap-2.5 rounded-[10px] p-2 text-left transition hover:bg-accent/60">
-            <span
-              className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] text-[13px] font-bold text-white"
-              style={{ backgroundColor: orgColor(active?.id ?? "") }}
-            >
-              {orgInitials(active?.name ?? "?")}
-            </span>
+            <OrgAvatar org={active} size={30} radius={9} fontSize={13} />
             <span className="flex min-w-0 grow flex-col">
               <span className="truncate text-[13.5px] font-semibold">
                 {active?.name ?? "Workspace"}
@@ -70,12 +65,7 @@ export function OrgSwitcher({
               key={o.id}
               onClick={() => o.slug !== activeSlug && router.push(`/${o.slug}`)}
             >
-              <span
-                className="flex size-[22px] items-center justify-center rounded-md text-[10.5px] font-bold text-white"
-                style={{ backgroundColor: orgColor(o.id) }}
-              >
-                {orgInitials(o.name)}
-              </span>
+              <OrgAvatar org={o} size={22} radius={6} fontSize={10.5} />
               <span className="grow truncate">{o.name}</span>
               <Check
                 className={cn(
@@ -99,6 +89,44 @@ export function OrgSwitcher({
 
       <CreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>
+  );
+}
+
+function OrgAvatar({
+  org,
+  size,
+  radius,
+  fontSize,
+}: {
+  org?: MembershipOrg;
+  size: number;
+  radius: number;
+  fontSize: number;
+}) {
+  if (org?.logo_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={org.logo_url}
+        alt=""
+        className="shrink-0 border object-contain"
+        style={{ width: size, height: size, borderRadius: radius }}
+      />
+    );
+  }
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center font-bold text-white"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        fontSize,
+        backgroundColor: orgColor(org?.id ?? ""),
+      }}
+    >
+      {orgInitials(org?.name ?? "?")}
+    </span>
   );
 }
 
