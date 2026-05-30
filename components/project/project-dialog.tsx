@@ -11,6 +11,13 @@ import { ProjectIcon } from "@/components/project/project-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Project } from "@/lib/database.types";
@@ -46,6 +53,7 @@ export function ProjectDialog({
   const [color, setColor] = useState(project?.color ?? PROJECT_COLORS[0]);
   const [description, setDescription] = useState(project?.description ?? "");
   const [template, setTemplate] = useState("blank");
+  const [visibility, setVisibility] = useState<"workspace" | "private">("workspace");
 
   function pickTemplate(id: string) {
     setTemplate(id);
@@ -63,6 +71,7 @@ export function ProjectDialog({
     fd.set("color", color);
     fd.set("description", description);
     fd.set("template", template);
+    fd.set("visibility", visibility);
     if (parentId) fd.set("parent_id", parentId);
     start(async () => {
       const res = editing
@@ -239,6 +248,32 @@ export function ProjectDialog({
               rows={2}
             />
           </div>
+
+          {/* Access (create only) */}
+          {!editing && (
+            <div className="flex flex-col gap-2">
+              <span className="text-[12.5px] font-semibold text-secondary-foreground">
+                Access
+              </span>
+              <Select
+                value={visibility}
+                onValueChange={(v) => setVisibility(v as "workspace" | "private")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="workspace">Everyone in the workspace</SelectItem>
+                  <SelectItem value="private">Only people I add</SelectItem>
+                </SelectContent>
+              </Select>
+              {visibility === "private" && (
+                <span className="text-[11px] text-muted-foreground">
+                  You can add members after creating it (project menu → Manage access).
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="mt-1 flex justify-end gap-2.5">

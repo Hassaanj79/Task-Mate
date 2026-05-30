@@ -17,6 +17,10 @@ export async function createProject(
   const icon = String(formData.get("icon") ?? "folder");
   const description = String(formData.get("description") ?? "").trim() || null;
   const parentId = String(formData.get("parent_id") ?? "").trim() || null;
+  const visibility =
+    String(formData.get("visibility") ?? "workspace") === "private"
+      ? "private"
+      : "workspace";
   if (!name) return { error: "Project name is required." };
 
   const supabase = await createClient();
@@ -29,12 +33,20 @@ export async function createProject(
       color,
       icon,
       description,
+      visibility,
       created_by: user.id,
     })
     .select("id")
     .single();
 
   if (error || !project) return { error: error?.message ?? "Could not create project." };
+
+  // Private project: grant the creator access so they keep seeing it.
+  if (visibility === "private") {
+    await supabase
+      .from("project_members")
+      .insert({ project_id: project.id, user_id: user.id, org_id: orgId, added_by: user.id });
+  }
 
   const template = getTemplate(String(formData.get("template") ?? "blank"));
 
@@ -142,6 +154,64 @@ export async function deleteProject(projectId: string, orgSlug: string) {
   await requireUser();
   const supabase = await createClient();
   const { error } = await supabase.from("projects").delete().eq("id", projectId);
+  if (error) return { error: error.message };
+  revalidatePath(`/${orgSlug}`, "layout");
+  return { error: null };
+}
+
+export async function setProjectVisibility(
+  projectId: string,
+  orgId: string,
+  orgSlug: string,
+  visibility: "workspace" | "private",
+) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ visibility })
+    .eq("id", projectId);
+  if (error) return { error: error.message };
+  // Going private: ensure the editor keeps access.
+  if (visibility === "private") {
+    await supabase
+      .from("project_members")
+      .insert({ project_id: projectId, user_id: user.id, org_id: orgId, added_by: user.id })
+      .select()
+      .maybeSingle();
+  }
+  revalidatePath(`/${orgSlug}`, "layout");
+  return { error: null };
+}
+
+export async function addProjectMember(
+  projectId: string,
+  orgId: string,
+  orgSlug: string,
+  userId: string,
+) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_members")
+    .insert({ project_id: projectId, user_id: userId, org_id: orgId, added_by: user.id });
+  if (error && !error.message.includes("duplicate")) return { error: error.message };
+  revalidatePath(`/${orgSlug}`, "layout");
+  return { error: null };
+}
+
+export async function removeProjectMember(
+  projectId: string,
+  orgSlug: string,
+  userId: string,
+) {
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_members")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("user_id", userId);
   if (error) return { error: error.message };
   revalidatePath(`/${orgSlug}`, "layout");
   return { error: null };

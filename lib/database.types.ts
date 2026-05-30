@@ -63,9 +63,18 @@ export type Project = {
   description: string | null;
   color: string | null;
   icon: string | null;
+  visibility: "workspace" | "private";
   archived: boolean;
   archived_at: string | null;
   created_by: string;
+  created_at: string;
+}
+
+export type ProjectMember = {
+  project_id: string;
+  user_id: string;
+  org_id: string;
+  added_by: string | null;
   created_at: string;
 }
 
@@ -230,8 +239,13 @@ export type Database = {
       };
       projects: {
         Row: Row<Project>;
-        Insert: Insert<Project, "id" | "parent_id" | "description" | "color" | "icon" | "archived" | "archived_at" | "created_at">;
+        Insert: Insert<Project, "id" | "parent_id" | "description" | "color" | "icon" | "visibility" | "archived" | "archived_at" | "created_at">;
         Update: Update<Project>;
+      };
+      project_members: {
+        Row: Row<ProjectMember>;
+        Insert: Insert<ProjectMember, "added_by" | "created_at">;
+        Update: Update<ProjectMember>;
       };
       task_statuses: {
         Row: Row<TaskStatus>;

@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ChevronDown,
   FolderPlus,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,6 +41,7 @@ import {
 import { OrgSwitcher } from "@/components/org/org-switcher";
 import { ProjectIcon } from "@/components/project/project-icon";
 import { ProjectDialog } from "@/components/project/project-dialog";
+import { ManageAccess } from "@/components/project/manage-access";
 import { useShell } from "@/components/app/shell-context";
 import { setProjectArchived, deleteProject } from "@/lib/actions/projects";
 import { canManageMembers, canWrite } from "@/lib/rbac";
@@ -53,12 +55,14 @@ type SidebarProject = Pick<
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { orgs, activeSlug, activeOrg, projects, role, counts, setSearchOpen } =
+  const { orgs, activeSlug, activeOrg, projects, role, counts, setSearchOpen, currentUserId } =
     useShell();
   const base = `/${activeSlug}`;
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SidebarProject | null>(null);
   const [subParent, setSubParent] = useState<SidebarProject | null>(null);
+  const [accessOf, setAccessOf] = useState<SidebarProject | null>(null);
+  const manageAccess = canManageMembers(role);
   const writable = canWrite(role);
 
   // Group projects into a parent → children tree.
@@ -145,9 +149,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               orgSlug={activeSlug}
               pathname={pathname}
               writable={writable}
+              manageAccess={manageAccess}
               onNavigate={onNavigate}
               onEdit={setEditing}
               onAddSub={setSubParent}
+              onAccess={setAccessOf}
             />
           ))}
           <NavItem
@@ -205,6 +211,17 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           parentName={subParent.name}
         />
       )}
+      {accessOf && (
+        <ManageAccess
+          open={!!accessOf}
+          onOpenChange={(v) => !v && setAccessOf(null)}
+          orgId={activeOrg.id}
+          orgSlug={activeSlug}
+          projectId={accessOf.id}
+          projectName={accessOf.name}
+          creatorId={currentUserId}
+        />
+      )}
     </div>
   );
 }
@@ -217,9 +234,11 @@ function SidebarProjectItem({
   orgSlug,
   pathname,
   writable,
+  manageAccess,
   onNavigate,
   onEdit,
   onAddSub,
+  onAccess,
 }: {
   project: SidebarProject;
   depth: number;
@@ -228,9 +247,11 @@ function SidebarProjectItem({
   orgSlug: string;
   pathname: string;
   writable: boolean;
+  manageAccess: boolean;
   onNavigate?: () => void;
   onEdit: (p: SidebarProject) => void;
   onAddSub: (p: SidebarProject) => void;
+  onAccess: (p: SidebarProject) => void;
 }) {
   const router = useRouter();
   const [, start] = useTransition();
@@ -323,6 +344,11 @@ function SidebarProjectItem({
             <DropdownMenuItem onClick={() => onEdit(project)}>
               <Pencil className="size-4" /> Edit
             </DropdownMenuItem>
+            {manageAccess && (
+              <DropdownMenuItem onClick={() => onAccess(project)}>
+                <Lock className="size-4" /> Manage access
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={archive}>
               <Archive className="size-4" /> Archive
             </DropdownMenuItem>
@@ -369,9 +395,11 @@ function SidebarProjectItem({
           orgSlug={orgSlug}
           pathname={pathname}
           writable={writable}
+          manageAccess={manageAccess}
           onNavigate={onNavigate}
           onEdit={onEdit}
           onAddSub={onAddSub}
+          onAccess={onAccess}
         />
       ))}
     </>
