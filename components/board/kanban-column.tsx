@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,9 @@ export function KanbanColumn({
   adding,
   onStartAdd,
   onCloseAdd,
+  canMoveLeft,
+  canMoveRight,
+  onMove,
 }: {
   status: TaskStatus;
   tasks: TaskWithLabels[];
@@ -49,6 +52,9 @@ export function KanbanColumn({
   adding: boolean;
   onStartAdd: (statusId: string) => void;
   onCloseAdd: () => void;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
+  onMove?: (dir: "left" | "right") => void;
 }) {
   const { role, projectId } = useProject();
   const queryClient = useQueryClient();
@@ -136,6 +142,18 @@ export function KanbanColumn({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setRenaming(true)}>
                   <Pencil className="size-4" /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!canMoveLeft}
+                  onClick={() => onMove?.("left")}
+                >
+                  <ArrowLeft className="size-4" /> Move left
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!canMoveRight}
+                  onClick={() => onMove?.("right")}
+                >
+                  <ArrowRight className="size-4" /> Move right
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setConfirmDelete(true)}

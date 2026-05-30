@@ -74,7 +74,7 @@ export function LabelPicker({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-xs">
               <Tag className="size-3" />
-              {selected.length === 0 && "Add label"}
+              {selected.length === 0 && "Add type"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-60 p-2" align="start">
@@ -100,7 +100,7 @@ export function LabelPicker({
               ))}
               {labels.length === 0 && (
                 <p className="px-2 py-1 text-xs text-muted-foreground">
-                  No labels yet.
+                  No types yet.
                 </p>
               )}
             </div>
@@ -108,7 +108,7 @@ export function LabelPicker({
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="New label"
+                placeholder="New type"
                 className="h-8"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {

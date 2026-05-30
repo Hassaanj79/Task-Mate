@@ -59,7 +59,7 @@ export function LabelsSettings({
         setNewName("");
         setNewColor(LABEL_COLORS[1]);
         setAdding(false);
-        toast.success("Label created");
+        toast.success("Type created");
         refresh();
       }
     });
@@ -68,14 +68,14 @@ export function LabelsSettings({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-[21px] font-bold tracking-tight">Labels</h1>
+        <h1 className="text-[21px] font-bold tracking-tight">Types</h1>
         <Button size="sm" onClick={() => setAdding(true)}>
-          <Plus className="size-4" /> New label
+          <Plus className="size-4" /> New type
         </Button>
       </div>
       <p className="text-[13px] text-muted-foreground">
-        Labels categorize tasks across every project in this workspace.{" "}
-        {labels.length} labels.
+        Types categorize tasks across every project in this workspace (Bug,
+        Feature request, Technical Debt…). {labels.length} types.
       </p>
 
       {adding && (
@@ -85,7 +85,7 @@ export function LabelsSettings({
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Label name…"
+            placeholder="Type name…"
             onKeyDown={(e) => {
               if (e.key === "Enter") create();
               if (e.key === "Escape") {
@@ -106,7 +106,7 @@ export function LabelsSettings({
             Cancel
           </Button>
           <Button size="sm" onClick={create}>
-            Add label
+            Add type
           </Button>
         </div>
       )}
@@ -124,7 +124,7 @@ export function LabelsSettings({
             <span className="flex size-11 items-center justify-center rounded-xl bg-secondary">
               <Tag className="size-5" />
             </span>
-            <span className="text-[13px]">No labels yet. Create your first one.</span>
+            <span className="text-[13px]">No types yet. Create your first one.</span>
           </div>
         ) : (
           labels.map((l, i) => (
@@ -167,7 +167,7 @@ function LabelRow({
       const res = await deleteLabelAction(label.id);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Label deleted");
+        toast.success("Type deleted");
         onSaved();
       }
     });
@@ -212,7 +212,7 @@ function LabelRow({
             onClick={remove}
             className="text-destructive focus:text-destructive"
           >
-            <Trash2 className="size-4" /> Delete label
+            <Trash2 className="size-4" /> Delete type
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -16,11 +16,16 @@ export function SettingsLayout({ children }: { children: React.ReactNode }) {
 
   const items = [
     { id: "profile", label: "My profile", icon: User, href: `${base}/profile` },
-    { id: "general", label: "General", icon: Settings, href: `${base}/general` },
+    {
+      id: "general",
+      label: "Workspace settings",
+      icon: Settings,
+      href: `${base}/general`,
+    },
     ...(canManageMembers(role)
       ? [{ id: "members", label: "Members", icon: Users, href: `${base}/members` }]
       : []),
-    { id: "labels", label: "Labels", icon: Tag, href: `${base}/labels` },
+    { id: "labels", label: "Types", icon: Tag, href: `${base}/labels` },
     { id: "billing", label: "Billing", icon: BarChart3, href: null },
   ];
 

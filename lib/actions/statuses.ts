@@ -33,6 +33,20 @@ export async function createStatus(
   return { error: null };
 }
 
+// Persist a new ordering of board columns.
+export async function reorderStatuses(updates: { id: string; position: number }[]) {
+  await requireUser();
+  const supabase = await createClient();
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("task_statuses")
+      .update({ position: u.position })
+      .eq("id", u.id);
+    if (error) return { error: error.message };
+  }
+  return { error: null };
+}
+
 export async function renameStatus(id: string, name: string) {
   await requireUser();
   const trimmed = name.trim();

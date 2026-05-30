@@ -253,7 +253,7 @@ export function TaskPanel() {
                   className="h-8 w-full"
                 />
 
-                <span className="text-muted-foreground">Labels</span>
+                <span className="text-muted-foreground">Type</span>
                 <LabelPicker
                   orgId={orgId}
                   taskId={task.id}

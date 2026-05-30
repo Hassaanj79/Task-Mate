@@ -24,6 +24,7 @@ import {
   type TaskWithLabels,
 } from "@/lib/queries";
 import { moveTask } from "@/lib/actions/tasks";
+import { reorderStatuses } from "@/lib/actions/statuses";
 import { POSITION_STEP, PRIORITIES } from "@/lib/constants";
 import { canWrite } from "@/lib/rbac";
 import { displayName } from "@/lib/format";
@@ -119,6 +120,33 @@ export function BoardView({
     }
     return { map, unassigned };
   }, [statuses, filteredTasks]);
+
+  function moveColumn(statusId: string, dir: "left" | "right") {
+    const ordered = [...statuses].sort((a, b) => a.position - b.position);
+    const i = ordered.findIndex((s) => s.id === statusId);
+    const j = dir === "left" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= ordered.length) return;
+    const a = ordered[i];
+    const b = ordered[j];
+    queryClient.setQueryData<TaskStatus[]>(qk.statuses(projectId), (old) =>
+      (old ?? []).map((s) =>
+        s.id === a.id
+          ? { ...s, position: b.position }
+          : s.id === b.id
+            ? { ...s, position: a.position }
+            : s,
+      ),
+    );
+    reorderStatuses([
+      { id: a.id, position: b.position },
+      { id: b.id, position: a.position },
+    ]).then((res) => {
+      if (res.error) {
+        toast.error(res.error);
+        queryClient.invalidateQueries({ queryKey: qk.statuses(projectId) });
+      }
+    });
+  }
 
   function onDragStart(e: DragStartEvent) {
     const t = tasks.find((x) => x.id === e.active.id);
@@ -263,7 +291,7 @@ export function BoardView({
         onDragEnd={onDragEnd}
       >
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-6">
-          {statuses.map((status) => (
+          {statuses.map((status, i) => (
             <KanbanColumn
               key={status.id}
               status={status}
@@ -273,6 +301,9 @@ export function BoardView({
               adding={addingStatusId === status.id}
               onStartAdd={(id) => setAddingStatusId(id)}
               onCloseAdd={() => setAddingStatusId(null)}
+              canMoveLeft={i > 0}
+              canMoveRight={i < statuses.length - 1}
+              onMove={(dir) => moveColumn(status.id, dir)}
             />
           ))}
           {writable && <AddColumn count={statuses.length} />}
