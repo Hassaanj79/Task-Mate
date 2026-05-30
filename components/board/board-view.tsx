@@ -15,6 +15,7 @@ import {
 import { KanbanColumn } from "@/components/board/kanban-column";
 import { TaskCard } from "@/components/board/task-card";
 import { AddColumn } from "@/components/board/add-column";
+import { ManageColumns } from "@/components/board/manage-columns";
 import { useProject } from "@/components/project/project-context";
 import {
   fetchStatuses,
@@ -38,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X } from "lucide-react";
+import { X, Columns3 } from "lucide-react";
 import { toast } from "sonner";
 import type { TaskStatus } from "@/lib/database.types";
 
@@ -60,6 +61,7 @@ export function BoardView({
   const [assignee, setAssignee] = useState("all");
   const [priority, setPriority] = useState("all");
   const [labelId, setLabelId] = useState("all");
+  const [manageOpen, setManageOpen] = useState(false);
   const filtersActive =
     search !== "" || assignee !== "all" || priority !== "all" || labelId !== "all";
   function clearFilters() {
@@ -266,10 +268,10 @@ export function BoardView({
         </Select>
         <Select value={labelId} onValueChange={setLabelId}>
           <SelectTrigger className="h-8 w-36">
-            <SelectValue placeholder="Label" />
+            <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Any label</SelectItem>
+            <SelectItem value="all">Any type</SelectItem>
             {labels.map((l) => (
               <SelectItem key={l.id} value={l.id}>
                 {l.name}
@@ -280,6 +282,16 @@ export function BoardView({
         {filtersActive && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X className="size-3.5" /> Clear
+          </Button>
+        )}
+        {writable && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => setManageOpen(true)}
+          >
+            <Columns3 className="size-4" /> Columns
           </Button>
         )}
       </div>
@@ -318,6 +330,14 @@ export function BoardView({
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <ManageColumns
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        orgId={orgId}
+        projectId={projectId}
+        statuses={statuses}
+      />
     </div>
   );
 }
