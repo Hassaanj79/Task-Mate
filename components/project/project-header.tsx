@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, LayoutGrid, List } from "lucide-react";
+import { Plus, LayoutGrid, List, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useProject } from "@/components/project/project-context";
 import { ProjectIcon } from "@/components/project/project-icon";
+import { ProjectDialog } from "@/components/project/project-dialog";
 import { canWrite } from "@/lib/rbac";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function ProjectHeader({
   projectId,
@@ -24,9 +25,10 @@ export function ProjectHeader({
   orgSlug: string;
 }) {
   const pathname = usePathname();
-  const { role, requestAdd } = useProject();
+  const { role, orgId, requestAdd } = useProject();
   const base = `/${orgSlug}/projects/${projectId}`;
   const writable = canWrite(role);
+  const [editOpen, setEditOpen] = useState(false);
 
   // Keyboard "c" to create a task (ignored while typing in a field).
   useEffect(() => {
@@ -67,9 +69,15 @@ export function ProjectHeader({
   return (
     <div className="shrink-0 border-b px-6 pt-4">
       <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+        <button
+          type="button"
+          onClick={() => writable && setEditOpen(true)}
+          disabled={!writable}
+          title={writable ? "Rename / edit project" : undefined}
+          className="group flex min-w-0 items-center gap-2.5 text-lg font-semibold tracking-tight disabled:cursor-default"
+        >
           <span
-            className="flex size-7 items-center justify-center rounded-lg"
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg"
             style={{
               backgroundColor: `color-mix(in oklch, ${projectColor ?? "var(--primary)"} 15%, var(--card))`,
               color: projectColor ?? undefined,
@@ -77,8 +85,11 @@ export function ProjectHeader({
           >
             <ProjectIcon icon={projectIcon} className="size-[18px]" />
           </span>
-          {projectName}
-        </h1>
+          <span className="truncate">{projectName}</span>
+          {writable && (
+            <Pencil className="size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+          )}
+        </button>
         {writable && (
           <Button size="sm" onClick={requestAdd}>
             <Plus className="size-4" />
@@ -86,6 +97,21 @@ export function ProjectHeader({
           </Button>
         )}
       </div>
+
+      {editOpen && (
+        <ProjectDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          orgId={orgId}
+          orgSlug={orgSlug}
+          project={{
+            id: projectId,
+            name: projectName,
+            color: projectColor,
+            icon: projectIcon,
+          }}
+        />
+      )}
       <div className="mt-3 flex items-center gap-4">
         {tab(`${base}/board`, "Board", <LayoutGrid className="size-4" />)}
         {tab(`${base}/list`, "List", <List className="size-4" />)}
