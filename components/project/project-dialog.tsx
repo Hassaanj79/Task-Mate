@@ -20,7 +20,9 @@ type Props = {
   onOpenChange: (v: boolean) => void;
   orgId: string;
   orgSlug: string;
-  project?: Pick<Project, "id" | "name" | "color" | "icon" | "description">;
+  project?: Pick<Project, "id" | "name" | "color" | "icon"> & {
+    description?: string | null;
+  };
 };
 
 export function ProjectDialog({

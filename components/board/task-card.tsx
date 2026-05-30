@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal, Archive } from "lucide-react";
+import { MoreHorizontal, Archive, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -12,13 +13,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   PriorityFlag,
   DueDateBadge,
   LabelChip,
   AssigneeAvatar,
 } from "@/components/task/task-bits";
 import { useProject } from "@/components/project/project-context";
-import { archiveTask, restoreTask } from "@/lib/actions/tasks";
+import { archiveTask, restoreTask, deleteTask } from "@/lib/actions/tasks";
 import { qk } from "@/lib/queries";
 import { canWrite } from "@/lib/rbac";
 import { toast } from "sonner";
@@ -39,6 +50,7 @@ export function TaskCard({
   const { role, projectId, setOpenTaskId } = useProject();
   const queryClient = useQueryClient();
   const writable = canWrite(role);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id, data: { type: "task", task } });
 
@@ -70,6 +82,16 @@ export function TaskCard({
     });
   }
 
+  async function onDelete() {
+    setConfirmDelete(false);
+    const res = await deleteTask(task.id);
+    if (res.error) toast.error(res.error);
+    else {
+      refresh();
+      toast.success("Task deleted");
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -99,8 +121,35 @@ export function TaskCard({
               <DropdownMenuItem onClick={onArchive}>
                 <Archive className="size-4" /> Archive
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setConfirmDelete(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="size-4" /> Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes “{task.title}” and its subtasks,
+                  comments, and attachments. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onDelete}
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 

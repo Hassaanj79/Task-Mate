@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   CheckSquare,
@@ -12,15 +12,38 @@ import {
   Archive,
   Settings,
   HelpCircle,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { OrgSwitcher } from "@/components/org/org-switcher";
 import { ProjectIcon } from "@/components/project/project-icon";
 import { ProjectDialog } from "@/components/project/project-dialog";
 import { useShell } from "@/components/app/shell-context";
+import { setProjectArchived, deleteProject } from "@/lib/actions/projects";
 import { canManageMembers, canWrite } from "@/lib/rbac";
 import { toast } from "sonner";
+import type { Project } from "@/lib/database.types";
+
+type SidebarProject = Pick<Project, "id" | "name" | "color" | "icon">;
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -28,6 +51,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     useShell();
   const base = `/${activeSlug}`;
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<SidebarProject | null>(null);
   const writable = canWrite(role);
 
   return (
@@ -94,26 +118,18 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               No projects yet.
             </p>
           )}
-          {projects.map((p) => {
-            const href = `${base}/projects/${p.id}/board`;
-            const active = pathname.startsWith(`${base}/projects/${p.id}`);
-            return (
-              <NavItem
-                key={p.id}
-                href={href}
-                icon={
-                  <ProjectIcon
-                    icon={p.icon}
-                    className="size-4"
-                    style={{ color: p.color ?? undefined }}
-                  />
-                }
-                label={p.name}
-                active={active}
-                onNavigate={onNavigate}
-              />
-            );
-          })}
+          {projects.map((p) => (
+            <SidebarProjectItem
+              key={p.id}
+              project={p}
+              base={base}
+              orgSlug={activeSlug}
+              active={pathname.startsWith(`${base}/projects/${p.id}`)}
+              writable={writable}
+              onNavigate={onNavigate}
+              onEdit={() => setEditing(p)}
+            />
+          ))}
           <NavItem
             href={`${base}/archive`}
             icon={<Archive className="size-[17px]" />}
@@ -150,6 +166,136 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         orgId={activeOrg.id}
         orgSlug={activeSlug}
       />
+      {editing && (
+        <ProjectDialog
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+          orgId={activeOrg.id}
+          orgSlug={activeSlug}
+          project={editing}
+        />
+      )}
+    </div>
+  );
+}
+
+function SidebarProjectItem({
+  project,
+  base,
+  orgSlug,
+  active,
+  writable,
+  onNavigate,
+  onEdit,
+}: {
+  project: SidebarProject;
+  base: string;
+  orgSlug: string;
+  active: boolean;
+  writable: boolean;
+  onNavigate?: () => void;
+  onEdit: () => void;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [, start] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const href = `${base}/projects/${project.id}/board`;
+
+  function archive() {
+    start(async () => {
+      const res = await setProjectArchived(project.id, orgSlug, true);
+      if (res?.error) toast.error(res.error);
+      else {
+        toast.success("Project archived");
+        if (pathname.startsWith(`${base}/projects/${project.id}`)) router.push(base);
+        else router.refresh();
+      }
+    });
+  }
+
+  function remove() {
+    setConfirmDelete(false);
+    start(async () => {
+      const res = await deleteProject(project.id, orgSlug);
+      if (res?.error) toast.error(res.error);
+      else {
+        toast.success("Project deleted");
+        if (pathname.startsWith(`${base}/projects/${project.id}`)) router.push(base);
+        else router.refresh();
+      }
+    });
+  }
+
+  return (
+    <div
+      className={cn(
+        "group relative flex items-center rounded-md transition",
+        active
+          ? "bg-accent font-semibold text-foreground"
+          : "font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+      )}
+    >
+      {active && (
+        <span className="absolute -left-[9px] top-2 bottom-2 w-[3px] rounded-sm bg-primary" />
+      )}
+      <Link
+        href={href}
+        onClick={onNavigate}
+        className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-[7px] text-[13.5px]"
+      >
+        <ProjectIcon
+          icon={project.icon}
+          className="size-4 shrink-0"
+          style={{ color: project.color ?? undefined }}
+        />
+        <span className="truncate">{project.name}</span>
+      </Link>
+      {writable && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition hover:bg-background/60 hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100">
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="size-4" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={archive}>
+              <Archive className="size-4" /> Archive
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setConfirmDelete(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{project.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the project and all of its tasks,
+              comments, and attachments. To keep it recoverable for 30 days,
+              archive it instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={remove}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
