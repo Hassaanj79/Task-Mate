@@ -9,7 +9,6 @@ import { useState } from "react";
 import {
   signInWithPassword,
   signUpWithPassword,
-  signInWithGoogle,
   type AuthState,
 } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -31,23 +30,6 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-function GoogleButton({ redirect }: { redirect: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <form action={signInWithGoogle}>
-      <input type="hidden" name="redirect" value={redirect} />
-      <Button type="submit" variant="outline" size="lg" className="w-full" disabled={pending}>
-        <svg className="size-[17px]" viewBox="0 0 48 48" aria-hidden>
-          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.8-6.8C35.5 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.3 13.7 17.7 9.5 24 9.5z" />
-          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-4 6.8-9.8 6.8-17.4z" />
-          <path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.2C1 16.5 0 20.1 0 24s1 7.5 2.6 10.8l7.9-6.2z" />
-          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.7 2.3-6.3 0-11.7-4.2-13.5-10l-7.9 6.2C6.5 42.6 14.6 48 24 48z" />
-        </svg>
-        Continue with Google
-      </Button>
-    </form>
-  );
-}
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const params = useSearchParams();
@@ -65,7 +47,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       {/* Left: form */}
       <div className="flex grow items-center justify-center overflow-y-auto p-6">
         <div className="w-full max-w-[360px]">
-          <Logo />
+          <Logo markClassName="size-10" textClassName="text-[26px]" />
           <h1 className="mt-8 text-[25px] font-bold tracking-tight">
             {isSignup ? "Create your workspace" : "Welcome back"}
           </h1>
@@ -86,12 +68,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </p>
           )}
 
-          <GoogleButton redirect={redirect} />
-
-          <div className="my-[18px] flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or
-            <span className="h-px flex-1 bg-border" />
-          </div>
 
           <form action={formAction} className="space-y-3.5">
             <input type="hidden" name="redirect" value={redirect} />
