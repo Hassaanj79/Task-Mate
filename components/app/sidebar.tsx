@@ -314,8 +314,11 @@ function SidebarProjectItem({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onAddSub(project)}>
-              <FolderPlus className="size-4" /> Add sub-project
+            <DropdownMenuItem
+              onClick={() => onAddSub(project)}
+              className="whitespace-nowrap"
+            >
+              <FolderPlus className="size-4 shrink-0" /> Sub-project
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(project)}>
               <Pencil className="size-4" /> Edit
