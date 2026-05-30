@@ -19,23 +19,79 @@ import { toast } from "sonner";
 
 type FieldKey = "title" | "status" | "priority" | "assignee" | "due" | "labels" | "description";
 
-const FIELDS: { key: FieldKey; label: string; required?: boolean; hints: string[] }[] = [
-  { key: "title", label: "Title", required: true, hints: ["name", "title", "task"] },
-  { key: "status", label: "Status / Column", hints: ["status", "state", "stage"] },
-  { key: "priority", label: "Priority", hints: ["priority"] },
-  { key: "assignee", label: "Assignee", hints: ["assignee", "person", "owner", "assigned"] },
-  { key: "due", label: "Due date", hints: ["due", "date", "deadline"] },
-  { key: "labels", label: "Types / Tags", hints: ["tag", "label", "type", "category"] },
-  { key: "description", label: "Description", hints: ["description", "notes", "details", "summary"] },
+const FIELDS: { key: FieldKey; label: string; required?: boolean }[] = [
+  { key: "title", label: "Title", required: true },
+  { key: "status", label: "Status / Column" },
+  { key: "priority", label: "Priority" },
+  { key: "assignee", label: "Assignee" },
+  { key: "due", label: "Due date" },
+  { key: "labels", label: "Types / Tags" },
+  { key: "description", label: "Description" },
 ];
 
+const SOURCES: Record<
+  string,
+  { label: string; instructions: string; hints: Record<FieldKey, string[]> }
+> = {
+  notion: {
+    label: "Notion",
+    instructions: "In Notion: ••• → Export → Markdown & CSV (or CSV).",
+    hints: {
+      title: ["name", "title"], status: ["status", "state"], priority: ["priority"],
+      assignee: ["assignee", "person", "owner", "assigned"], due: ["due", "date", "deadline"],
+      labels: ["tag", "label", "type", "category"], description: ["description", "notes", "details"],
+    },
+  },
+  clickup: {
+    label: "ClickUp",
+    instructions: "In ClickUp: List view → ••• → Export → CSV.",
+    hints: {
+      title: ["task name", "name", "title"], status: ["status"], priority: ["priority"],
+      assignee: ["assignee", "assigned to", "assignees"], due: ["due date", "due", "date"],
+      labels: ["tags", "tag", "label"], description: ["description", "text content", "content", "details"],
+    },
+  },
+  jira: {
+    label: "Jira",
+    instructions: "In Jira: Issues → Export → Export Excel CSV (all fields).",
+    hints: {
+      title: ["summary", "title", "name"], status: ["status"], priority: ["priority"],
+      assignee: ["assignee", "assignee email"], due: ["due date", "due"],
+      labels: ["labels", "components", "label"], description: ["description"],
+    },
+  },
+  generic: {
+    label: "Other / Generic CSV",
+    instructions: "Any CSV with a header row.",
+    hints: {
+      title: ["title", "name", "task", "summary"], status: ["status", "state", "stage"],
+      priority: ["priority"], assignee: ["assignee", "person", "owner", "assigned"],
+      due: ["due", "date", "deadline"], labels: ["tag", "label", "type", "category"],
+      description: ["description", "notes", "details"],
+    },
+  },
+};
+
 const NONE = "__none__";
+
+function guessMap(headers: string[], source: string): Record<FieldKey, number> {
+  const hints = SOURCES[source].hints;
+  const m = {} as Record<FieldKey, number>;
+  for (const f of FIELDS) {
+    m[f.key] = headers.findIndex((col) =>
+      hints[f.key].some((hint) => col.toLowerCase().includes(hint)),
+    );
+  }
+  if (m.title < 0) m.title = headers.length ? 0 : -1;
+  return m;
+}
 
 export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [source, setSource] = useState("notion");
   const [fileName, setFileName] = useState("");
   const [projectName, setProjectName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
@@ -53,14 +109,12 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
     setHeaders(h);
     setRows(r);
     if (!projectName) setProjectName(file.name.replace(/\.csv$/i, ""));
-    // auto-guess mapping
-    const guess: Record<FieldKey, number> = { ...map };
-    for (const f of FIELDS) {
-      const idx = h.findIndex((col) => f.hints.some((hint) => col.toLowerCase().includes(hint)));
-      guess[f.key] = idx;
-    }
-    if (guess.title < 0) guess.title = 0;
-    setMap(guess);
+    setMap(guessMap(h, source));
+  }
+
+  function changeSource(s: string) {
+    setSource(s);
+    if (headers.length) setMap(guessMap(headers, s));
   }
 
   function setField(key: FieldKey, value: string) {
@@ -97,11 +151,28 @@ export function ImportWizard({ orgId, orgSlug }: { orgId: string; orgSlug: strin
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-[21px] font-bold tracking-tight">Import from Notion</h1>
+        <h1 className="text-[21px] font-bold tracking-tight">Import tasks</h1>
         <p className="text-sm text-muted-foreground">
-          Export your Notion database as CSV, upload it here, map the columns,
-          and it becomes a project. Missing statuses are created as new columns.
+          Upload a CSV from Notion, ClickUp, or Jira. It becomes a project —
+          missing statuses are created as new columns, tags become types.
         </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-[12.5px] font-semibold text-secondary-foreground">
+          Source
+        </Label>
+        <Select value={source} onValueChange={changeSource}>
+          <SelectTrigger className="max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(SOURCES).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11.5px] text-muted-foreground">{SOURCES[source].instructions}</p>
       </div>
 
       {/* Upload */}
