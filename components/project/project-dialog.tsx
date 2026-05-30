@@ -23,6 +23,8 @@ type Props = {
   project?: Pick<Project, "id" | "name" | "color" | "icon"> & {
     description?: string | null;
   };
+  parentId?: string;
+  parentName?: string;
 };
 
 export function ProjectDialog({
@@ -31,10 +33,13 @@ export function ProjectDialog({
   orgId,
   orgSlug,
   project,
+  parentId,
+  parentName,
 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const editing = Boolean(project);
+  const isSub = Boolean(parentId) && !editing;
 
   const [name, setName] = useState(project?.name ?? "");
   const [icon, setIcon] = useState(project?.icon ?? PROJECT_ICONS[0]);
@@ -58,6 +63,7 @@ export function ProjectDialog({
     fd.set("color", color);
     fd.set("description", description);
     fd.set("template", template);
+    if (parentId) fd.set("parent_id", parentId);
     start(async () => {
       const res = editing
         ? await updateProject(project!.id, orgSlug, fd)
@@ -84,9 +90,16 @@ export function ProjectDialog({
       >
         <div className="flex flex-col gap-[18px] p-6">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-[17px] font-bold">
-              {editing ? "Edit project" : "New project"}
-            </DialogTitle>
+            <div className="flex flex-col">
+              <DialogTitle className="text-[17px] font-bold">
+                {editing ? "Edit project" : isSub ? "New sub-project" : "New project"}
+              </DialogTitle>
+              {isSub && parentName && (
+                <span className="text-[12px] text-muted-foreground">
+                  inside {parentName}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => onOpenChange(false)}
               className="text-muted-foreground transition hover:text-foreground"

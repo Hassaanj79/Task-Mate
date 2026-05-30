@@ -22,7 +22,7 @@ export default async function OrgLayout({
   const [{ data: projects }, myTasksRes, inboxRes] = await Promise.all([
     supabase
       .from("projects")
-      .select("id, name, color, icon")
+      .select("id, name, color, icon, parent_id")
       .eq("org_id", org.id)
       .eq("archived", false)
       .order("created_at", { ascending: true }),

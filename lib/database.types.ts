@@ -58,6 +58,7 @@ export type Invitation = {
 export type Project = {
   id: string;
   org_id: string;
+  parent_id: string | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -201,7 +202,7 @@ export type Database = {
       };
       projects: {
         Row: Row<Project>;
-        Insert: Insert<Project, "id" | "description" | "color" | "icon" | "archived" | "archived_at" | "created_at">;
+        Insert: Insert<Project, "id" | "parent_id" | "description" | "color" | "icon" | "archived" | "archived_at" | "created_at">;
         Update: Update<Project>;
       };
       task_statuses: {

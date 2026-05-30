@@ -16,12 +16,21 @@ export async function createProject(
   const color = String(formData.get("color") ?? "oklch(0.66 0.15 42)");
   const icon = String(formData.get("icon") ?? "folder");
   const description = String(formData.get("description") ?? "").trim() || null;
+  const parentId = String(formData.get("parent_id") ?? "").trim() || null;
   if (!name) return { error: "Project name is required." };
 
   const supabase = await createClient();
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ org_id: orgId, name, color, icon, description, created_by: user.id })
+    .insert({
+      org_id: orgId,
+      parent_id: parentId,
+      name,
+      color,
+      icon,
+      description,
+      created_by: user.id,
+    })
     .select("id")
     .single();
 

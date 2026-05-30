@@ -20,6 +20,7 @@ export default async function OrgDashboard({
         .from("projects")
         .select("*")
         .eq("org_id", org.id)
+        .is("parent_id", null)
         .order("created_at", { ascending: true }),
       supabase
         .from("task_statuses")

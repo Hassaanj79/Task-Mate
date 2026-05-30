@@ -15,6 +15,9 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  ChevronRight,
+  ChevronDown,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -43,7 +46,10 @@ import { canManageMembers, canWrite } from "@/lib/rbac";
 import { toast } from "sonner";
 import type { Project } from "@/lib/database.types";
 
-type SidebarProject = Pick<Project, "id" | "name" | "color" | "icon">;
+type SidebarProject = Pick<
+  Project,
+  "id" | "name" | "color" | "icon" | "parent_id"
+>;
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -52,7 +58,18 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const base = `/${activeSlug}`;
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SidebarProject | null>(null);
+  const [subParent, setSubParent] = useState<SidebarProject | null>(null);
   const writable = canWrite(role);
+
+  // Group projects into a parent → children tree.
+  const childrenOf = new Map<string | null, SidebarProject[]>();
+  for (const p of projects) {
+    const key = p.parent_id ?? null;
+    const arr = childrenOf.get(key) ?? [];
+    arr.push(p);
+    childrenOf.set(key, arr);
+  }
+  const roots = childrenOf.get(null) ?? [];
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -118,16 +135,19 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               No projects yet.
             </p>
           )}
-          {projects.map((p) => (
+          {roots.map((p) => (
             <SidebarProjectItem
               key={p.id}
               project={p}
+              depth={0}
+              childrenOf={childrenOf}
               base={base}
               orgSlug={activeSlug}
-              active={pathname.startsWith(`${base}/projects/${p.id}`)}
+              pathname={pathname}
               writable={writable}
               onNavigate={onNavigate}
-              onEdit={() => setEditing(p)}
+              onEdit={setEditing}
+              onAddSub={setSubParent}
             />
           ))}
           <NavItem
@@ -175,32 +195,50 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           project={editing}
         />
       )}
+      {subParent && (
+        <ProjectDialog
+          open={!!subParent}
+          onOpenChange={(v) => !v && setSubParent(null)}
+          orgId={activeOrg.id}
+          orgSlug={activeSlug}
+          parentId={subParent.id}
+          parentName={subParent.name}
+        />
+      )}
     </div>
   );
 }
 
 function SidebarProjectItem({
   project,
+  depth,
+  childrenOf,
   base,
   orgSlug,
-  active,
+  pathname,
   writable,
   onNavigate,
   onEdit,
+  onAddSub,
 }: {
   project: SidebarProject;
+  depth: number;
+  childrenOf: Map<string | null, SidebarProject[]>;
   base: string;
   orgSlug: string;
-  active: boolean;
+  pathname: string;
   writable: boolean;
   onNavigate?: () => void;
-  onEdit: () => void;
+  onEdit: (p: SidebarProject) => void;
+  onAddSub: (p: SidebarProject) => void;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [, start] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const href = `${base}/projects/${project.id}/board`;
+  const active = pathname.startsWith(`${base}/projects/${project.id}`);
+  const kids = childrenOf.get(project.id) ?? [];
 
   function archive() {
     start(async () => {
@@ -228,6 +266,7 @@ function SidebarProjectItem({
   }
 
   return (
+    <>
     <div
       className={cn(
         "group relative flex items-center rounded-md transition",
@@ -235,14 +274,30 @@ function SidebarProjectItem({
           ? "bg-accent font-semibold text-foreground"
           : "font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground",
       )}
+      style={{ marginLeft: depth * 12 }}
     >
       {active && (
         <span className="absolute -left-[9px] top-2 bottom-2 w-[3px] rounded-sm bg-primary" />
       )}
+      {kids.length > 0 ? (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex size-5 shrink-0 items-center justify-center text-muted-foreground"
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3.5" />
+          ) : (
+            <ChevronRight className="size-3.5" />
+          )}
+        </button>
+      ) : (
+        <span className="w-5 shrink-0" />
+      )}
       <Link
         href={href}
         onClick={onNavigate}
-        className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-[7px] text-[13.5px]"
+        className="flex min-w-0 flex-1 items-center gap-2.5 py-[7px] pr-2 text-[13.5px]"
       >
         <ProjectIcon
           icon={project.icon}
@@ -259,7 +314,10 @@ function SidebarProjectItem({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
+            <DropdownMenuItem onClick={() => onAddSub(project)}>
+              <FolderPlus className="size-4" /> Add sub-project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(project)}>
               <Pencil className="size-4" /> Edit
             </DropdownMenuItem>
             <DropdownMenuItem onClick={archive}>
@@ -297,6 +355,23 @@ function SidebarProjectItem({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    {expanded &&
+      kids.map((child) => (
+        <SidebarProjectItem
+          key={child.id}
+          project={child}
+          depth={depth + 1}
+          childrenOf={childrenOf}
+          base={base}
+          orgSlug={orgSlug}
+          pathname={pathname}
+          writable={writable}
+          onNavigate={onNavigate}
+          onEdit={onEdit}
+          onAddSub={onAddSub}
+        />
+      ))}
+    </>
   );
 }
 

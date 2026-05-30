@@ -10,7 +10,7 @@ export type ShellData = {
   orgs: MembershipOrg[];
   activeSlug: string;
   activeOrg: MembershipOrg;
-  projects: Pick<Project, "id" | "name" | "color" | "icon">[];
+  projects: Pick<Project, "id" | "name" | "color" | "icon" | "parent_id">[];
   role: OrgRole;
   counts: { myTasks: number; inbox: number };
 };
