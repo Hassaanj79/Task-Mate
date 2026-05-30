@@ -52,6 +52,7 @@ export type Project = {
   color: string | null;
   icon: string | null;
   archived: boolean;
+  archived_at: string | null;
   created_by: string;
   created_at: string;
 }
@@ -84,6 +85,7 @@ export type Task = {
   assignee_id: string | null;
   due_date: string | null;
   position: number;
+  archived_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -173,7 +175,7 @@ export type Database = {
       };
       projects: {
         Row: Row<Project>;
-        Insert: Insert<Project, "id" | "description" | "color" | "icon" | "archived" | "created_at">;
+        Insert: Insert<Project, "id" | "description" | "color" | "icon" | "archived" | "archived_at" | "created_at">;
         Update: Update<Project>;
       };
       task_statuses: {
@@ -198,6 +200,7 @@ export type Database = {
           | "assignee_id"
           | "due_date"
           | "position"
+          | "archived_at"
           | "created_at"
           | "updated_at"
         >;

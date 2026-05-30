@@ -119,7 +119,10 @@ export async function setProjectArchived(
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
-    .update({ archived })
+    .update({
+      archived,
+      archived_at: archived ? new Date().toISOString() : null,
+    })
     .eq("id", projectId);
   if (error) return { error: error.message };
   revalidatePath(`/${orgSlug}`, "layout");

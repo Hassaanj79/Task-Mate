@@ -31,7 +31,8 @@ export default async function OrgLayout({
       .select("id", { count: "exact", head: true })
       .eq("org_id", org.id)
       .eq("assignee_id", user!.id)
-      .is("parent_id", null),
+      .is("parent_id", null)
+      .is("archived_at", null),
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })

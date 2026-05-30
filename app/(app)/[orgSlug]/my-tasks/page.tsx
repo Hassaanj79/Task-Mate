@@ -18,7 +18,8 @@ export default async function MyTasksPage({
         .select("id, title, due_date, priority, status_id, project_id")
         .eq("org_id", org.id)
         .eq("assignee_id", user!.id)
-        .is("parent_id", null),
+        .is("parent_id", null)
+        .is("archived_at", null),
       supabase.from("projects").select("id, name, color, icon").eq("org_id", org.id),
       supabase
         .from("task_statuses")

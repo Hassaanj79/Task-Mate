@@ -114,6 +114,34 @@ export async function moveTask(
   return { error: null };
 }
 
+// Soft-delete: move to the archive (kept 30 days, then auto-purged).
+export async function archiveTask(taskId: string) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", taskId)
+    .select("org_id")
+    .single();
+  if (error) return { error: error.message };
+  if (data)
+    await logActivity(supabase, data.org_id, taskId, user.id, "archived");
+  return { error: null };
+}
+
+export async function restoreTask(taskId: string) {
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ archived_at: null })
+    .eq("id", taskId);
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+// Permanent delete (used from the archive's "Delete now").
 export async function deleteTask(taskId: string) {
   await requireUser();
   const supabase = await createClient();

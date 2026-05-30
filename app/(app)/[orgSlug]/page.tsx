@@ -29,7 +29,8 @@ export default async function OrgDashboard({
         .from("tasks")
         .select("project_id, status_id, assignee_id, due_date")
         .eq("org_id", org.id)
-        .is("parent_id", null),
+        .is("parent_id", null)
+        .is("archived_at", null),
       supabase
         .from("organization_members")
         .select("profiles(*)")

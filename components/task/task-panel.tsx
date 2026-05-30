@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type JSONContent } from "@tiptap/react";
-import { Trash2, Loader2, X } from "lucide-react";
+import { Loader2, X, Archive } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -21,17 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { RichTextEditor } from "@/components/task/rich-text-editor";
 import { LabelPicker } from "@/components/task/label-picker";
 import { CommentThread } from "@/components/task/comment-thread";
@@ -45,7 +34,7 @@ import {
   fetchStatuses,
   qk,
 } from "@/lib/queries";
-import { updateTaskFields, deleteTask } from "@/lib/actions/tasks";
+import { updateTaskFields, archiveTask, restoreTask } from "@/lib/actions/tasks";
 import { PRIORITIES } from "@/lib/constants";
 import { canWrite } from "@/lib/rbac";
 import { displayName } from "@/lib/format";
@@ -100,16 +89,26 @@ export function TaskPanel() {
     else invalidateAll();
   }
 
-  async function onDelete() {
+  async function onArchive() {
     if (!openTaskId) return;
-    const res = await deleteTask(openTaskId);
+    const id = openTaskId;
+    const res = await archiveTask(id);
     if (res.error) {
       toast.error(res.error);
       return;
     }
     setOpenTaskId(null);
     queryClient.invalidateQueries({ queryKey: qk.tasks(projectId) });
-    toast.success("Task deleted");
+    toast("Task archived", {
+      description: "Kept for 30 days in the archive.",
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          await restoreTask(id);
+          queryClient.invalidateQueries({ queryKey: qk.tasks(projectId) });
+        },
+      },
+    });
   }
 
   const doneStatusId = statuses[statuses.length - 1]?.id ?? null;
@@ -156,31 +155,16 @@ export function TaskPanel() {
                 </Select>
                 <div className="flex items-center gap-1">
                   {writable && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete task?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This permanently deletes the task and its subtasks,
-                            comments, and attachments.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={onDelete}
-                            className="bg-destructive text-white hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={onArchive}
+                      title="Archive task"
+                      aria-label="Archive task"
+                    >
+                      <Archive className="size-4" />
+                    </Button>
                   )}
                   <Button
                     variant="ghost"

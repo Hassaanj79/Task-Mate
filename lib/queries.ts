@@ -41,6 +41,7 @@ export async function fetchTasks(projectId: string): Promise<TaskWithLabels[]> {
       .select("*")
       .eq("project_id", projectId)
       .is("parent_id", null)
+      .is("archived_at", null)
       .order("position", { ascending: true }),
     supabase.from("task_labels").select("task_id, label_id"),
   ]);

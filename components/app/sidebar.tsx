@@ -114,13 +114,13 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               />
             );
           })}
-          <button
-            onClick={() => toast("1 archived project", { icon: <Archive className="size-4" /> })}
-            className="flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-left text-[13.5px] font-medium text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
-          >
-            <Archive className="size-[17px] text-muted-foreground" />
-            Archived
-          </button>
+          <NavItem
+            href={`${base}/archive`}
+            icon={<Archive className="size-[17px]" />}
+            label="Archived"
+            active={pathname === `${base}/archive`}
+            onNavigate={onNavigate}
+          />
         </nav>
       </ScrollArea>
 
