@@ -4,7 +4,16 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
-function siteUrl() {
+// Prefer the actual domain the request came in on; fall back to the env URL.
+async function baseUrl() {
+  const h = await headers();
+  const origin = h.get("origin");
+  if (origin) return origin;
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (host) {
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    return `${proto}://${host}`;
+  }
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
 
@@ -48,7 +57,7 @@ export async function signUpWithPassword(
       data: { full_name: fullName || null },
       // After email confirmation, land back on wherever they came from
       // (e.g. an /invite/[token] page) so they can join the inviting org.
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+      emailRedirectTo: `${await baseUrl()}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
     },
   });
   if (error) return { error: error.message };
@@ -65,7 +74,7 @@ export async function signUpWithPassword(
 export async function signInWithGoogle(formData: FormData) {
   const redirectTo = String(formData.get("redirect") ?? "/");
   const supabase = await createClient();
-  const origin = (await headers()).get("origin") ?? siteUrl();
+  const origin = await baseUrl();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
