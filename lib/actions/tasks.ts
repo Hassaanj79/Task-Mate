@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { POSITION_STEP } from "@/lib/constants";
+import { emitEvent } from "@/lib/automation/engine";
 import type { TaskPriority } from "@/lib/database.types";
 
 async function logActivity(
@@ -65,6 +66,7 @@ export async function createTask(input: {
 
   if (error || !data) return { error: error?.message ?? "Could not create task." };
   await logActivity(supabase, input.orgId, data.id, user.id, "created");
+  await emitEvent(supabase, { taskId: data.id, type: "task_created", actorId: user.id });
   return { error: null, id: data.id };
 }
 
@@ -91,6 +93,17 @@ export async function updateTaskFields(
 
   const action = Object.keys(patch)[0] ?? "updated";
   await logActivity(supabase, orgId, taskId, user.id, `updated_${action}`, patch as Record<string, unknown>);
+
+  // Fire field-change automation triggers.
+  if ("status_id" in patch)
+    await emitEvent(supabase, { taskId, type: "status_changed", actorId: user.id });
+  if ("assignee_id" in patch)
+    await emitEvent(supabase, { taskId, type: "assignee_changed", actorId: user.id });
+  if ("priority" in patch)
+    await emitEvent(supabase, { taskId, type: "priority_changed", actorId: user.id });
+  if ("due_date" in patch)
+    await emitEvent(supabase, { taskId, type: "due_changed", actorId: user.id });
+
   return { error: null };
 }
 
@@ -111,6 +124,7 @@ export async function moveTask(
   await logActivity(supabase, orgId, taskId, user.id, "status_changed", {
     status_id: statusId,
   });
+  await emitEvent(supabase, { taskId, type: "status_changed", actorId: user.id });
   return { error: null };
 }
 
@@ -156,13 +170,19 @@ export async function setTaskLabel(
   labelId: string,
   attach: boolean,
 ) {
-  await requireUser();
+  const user = await requireUser();
   const supabase = await createClient();
   if (attach) {
     const { error } = await supabase
       .from("task_labels")
       .insert({ task_id: taskId, label_id: labelId, org_id: orgId });
     if (error) return { error: error.message };
+    await emitEvent(supabase, {
+      taskId,
+      type: "label_added",
+      actorId: user.id,
+      eventConfig: { label_id: labelId },
+    });
   } else {
     const { error } = await supabase
       .from("task_labels")

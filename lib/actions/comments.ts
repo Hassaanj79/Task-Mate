@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
+import { emitEvent } from "@/lib/automation/engine";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function plainText(doc: any): string {
@@ -37,6 +38,8 @@ export async function addComment(
     actor_id: user.id,
     action: "commented",
   });
+
+  await emitEvent(supabase, { taskId, type: "comment_added", actorId: user.id });
 
   // Notify mentioned co-members (never self). RLS confirms org membership.
   const recipients = [...new Set(mentionedIds)].filter((id) => id !== user.id);

@@ -49,11 +49,11 @@ export function InboxView({
   const mentionRows = notifications.map((n) => ({
     id: n.id,
     actor: n.actor,
-    action: "mentioned you in",
+    action: n.type === "mention" ? "mentioned you in" : (n.body ?? "updated"),
     title: n.task?.title ?? "a task",
     projectId: n.task?.project_id ?? null,
     created_at: n.created_at,
-    body: n.body,
+    body: n.type === "mention" ? n.body : null,
   }));
 
   const activityRows = events.map((e) => ({

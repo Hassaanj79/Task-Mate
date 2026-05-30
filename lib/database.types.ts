@@ -141,6 +141,34 @@ export type Notification = {
   created_at: string;
 };
 
+export type Automation = {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  name: string;
+  enabled: boolean;
+  trigger: Record<string, unknown>;
+  conditions: Record<string, unknown>;
+  actions: Record<string, unknown>[];
+  run_count: number;
+  last_run_at: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type AutomationRun = {
+  id: string;
+  org_id: string;
+  automation_id: string | null;
+  task_id: string | null;
+  status: string;
+  event_id: string | null;
+  event: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+};
+
 export type ActivityLog = {
   id: string;
   org_id: string;
@@ -261,6 +289,22 @@ export type Database = {
         >;
         Update: Update<Notification>;
       };
+      automations: {
+        Row: Row<Automation>;
+        Insert: Insert<
+          Automation,
+          "id" | "project_id" | "enabled" | "conditions" | "actions" | "run_count" | "last_run_at" | "created_by" | "created_at"
+        >;
+        Update: Update<Automation>;
+      };
+      automation_runs: {
+        Row: Row<AutomationRun>;
+        Insert: Insert<
+          AutomationRun,
+          "id" | "automation_id" | "task_id" | "event_id" | "event" | "result" | "error" | "created_at"
+        >;
+        Update: Update<AutomationRun>;
+      };
     }>;
     Views: Record<string, never>;
     Functions: {
@@ -270,6 +314,10 @@ export type Database = {
       create_organization: {
         Args: { p_name: string; p_slug: string };
         Returns: Organization;
+      };
+      apply_automation_action: {
+        Args: { p_org: string; p_task: string; p_actor: string; p_action: unknown };
+        Returns: undefined;
       };
     };
     Enums: {

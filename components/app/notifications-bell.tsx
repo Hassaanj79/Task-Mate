@@ -80,12 +80,12 @@ export function NotificationsBell() {
                       <span className="font-semibold text-foreground">
                         {displayName(n.actor)}
                       </span>{" "}
-                      mentioned you in{" "}
+                      {n.type === "mention" ? "mentioned you in" : (n.body ?? "updated")}{" "}
                       <span className="font-medium text-foreground">
                         {n.task?.title ?? "a task"}
                       </span>
                     </p>
-                    {n.body && (
+                    {n.type === "mention" && n.body && (
                       <p className="truncate text-[11.5px] text-muted-foreground">
                         “{n.body}”
                       </p>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Users, BarChart3, Tag, User } from "lucide-react";
+import { Settings, Users, BarChart3, Tag, User, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Topbar } from "@/components/app/topbar";
 import { useShell } from "@/components/app/shell-context";
@@ -23,7 +23,10 @@ export function SettingsLayout({ children }: { children: React.ReactNode }) {
       href: `${base}/general`,
     },
     ...(canManageMembers(role)
-      ? [{ id: "members", label: "Members", icon: Users, href: `${base}/members` }]
+      ? [
+          { id: "members", label: "Members", icon: Users, href: `${base}/members` },
+          { id: "automations", label: "Automations", icon: Zap, href: `${base}/automations` },
+        ]
       : []),
     { id: "labels", label: "Types", icon: Tag, href: `${base}/labels` },
     { id: "billing", label: "Billing", icon: BarChart3, href: null },
