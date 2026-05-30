@@ -318,19 +318,19 @@ function SidebarProjectItem({
       <Link
         href={href}
         onClick={onNavigate}
-        className="flex min-w-0 flex-1 items-center gap-2.5 py-[7px] pr-2 text-[13.5px]"
+        className="flex min-w-0 flex-1 items-start gap-2.5 py-[7px] pr-1 text-[13.5px]"
       >
         <ProjectIcon
           icon={project.icon}
-          className="size-4 shrink-0"
+          className="mt-0.5 size-4 shrink-0"
           style={{ color: project.color ?? undefined }}
         />
-        <span className="truncate">{project.name}</span>
+        <span className="min-w-0 break-words">{project.name}</span>
       </Link>
       {writable && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition hover:bg-background/60 hover:text-foreground group-hover:text-muted-foreground data-[state=open]:text-foreground">
+            <button className="mr-1 mt-1 flex size-6 shrink-0 items-center justify-center self-start rounded text-muted-foreground/60 transition hover:bg-background/60 hover:text-foreground group-hover:text-muted-foreground data-[state=open]:text-foreground">
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
