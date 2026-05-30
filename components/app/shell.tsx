@@ -21,12 +21,16 @@ export function Shell({
 }
 
 function ShellInner({ children }: { children: React.ReactNode }) {
-  const { mobileOpen, setMobileOpen } = useShell();
+  const { mobileOpen, setMobileOpen, collapsed } = useShell();
   return (
     <div className="flex h-dvh overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden w-[248px] shrink-0 border-r md:block">
-        <SidebarContent />
+      <aside
+        className={`hidden shrink-0 border-r transition-[width] duration-200 md:block ${
+          collapsed ? "w-14" : "w-[248px]"
+        }`}
+      >
+        <SidebarContent collapsed={collapsed} />
       </aside>
 
       {/* Mobile sidebar */}

@@ -31,9 +31,11 @@ import type { MembershipOrg } from "@/lib/auth";
 export function OrgSwitcher({
   orgs,
   activeSlug,
+  collapsed,
 }: {
   orgs: MembershipOrg[];
   activeSlug: string;
+  collapsed?: boolean;
 }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
@@ -43,18 +45,27 @@ export function OrgSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex w-full items-center gap-2.5 rounded-[10px] p-2 text-left transition hover:bg-accent/60">
-            <OrgAvatar org={active} size={30} radius={9} fontSize={13} />
-            <span className="flex min-w-0 grow flex-col">
-              <span className="truncate text-[13.5px] font-semibold">
-                {active?.name ?? "Workspace"}
+          {collapsed ? (
+            <button
+              title={active?.name}
+              className="flex items-center justify-center rounded-[10px] p-1 transition hover:bg-accent/60"
+            >
+              <OrgAvatar org={active} size={30} radius={9} fontSize={13} />
+            </button>
+          ) : (
+            <button className="flex w-full items-center gap-2.5 rounded-[10px] p-2 text-left transition hover:bg-accent/60">
+              <OrgAvatar org={active} size={30} radius={9} fontSize={13} />
+              <span className="flex min-w-0 grow flex-col">
+                <span className="truncate text-[13.5px] font-semibold">
+                  {active?.name ?? "Workspace"}
+                </span>
+                <span className="text-[11px] capitalize text-muted-foreground">
+                  {active?.role} · Free plan
+                </span>
               </span>
-              <span className="text-[11px] capitalize text-muted-foreground">
-                {active?.role} · Free plan
-              </span>
-            </span>
-            <ChevronsUpDown className="size-[15px] shrink-0 text-muted-foreground/70" />
-          </button>
+              <ChevronsUpDown className="size-[15px] shrink-0 text-muted-foreground/70" />
+            </button>
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-60">
           <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
