@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Users, BarChart3, Tag, User, Zap } from "lucide-react";
+import { Settings, Users, BarChart3, Tag, User, Zap, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Topbar } from "@/components/app/topbar";
 import { useShell } from "@/components/app/shell-context";
@@ -26,6 +26,7 @@ export function SettingsLayout({ children }: { children: React.ReactNode }) {
       ? [
           { id: "members", label: "Members", icon: Users, href: `${base}/members` },
           { id: "automations", label: "Automations", icon: Zap, href: `${base}/automations` },
+          { id: "import", label: "Import", icon: Upload, href: `${base}/import` },
         ]
       : []),
     { id: "labels", label: "Types", icon: Tag, href: `${base}/labels` },
