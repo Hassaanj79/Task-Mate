@@ -12,6 +12,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { KanbanColumn } from "@/components/board/kanban-column";
 import { TaskCard } from "@/components/board/task-card";
 import { AddColumn } from "@/components/board/add-column";
@@ -54,6 +59,7 @@ export function BoardView({
   const queryClient = useQueryClient();
   const writable = canWrite(role);
   const [activeTask, setActiveTask] = useState<TaskWithLabels | null>(null);
+  const [activeColumn, setActiveColumn] = useState<TaskStatus | null>(null);
   const [addingStatusId, setAddingStatusId] = useState<string | null>(null);
 
   // Filters
@@ -150,15 +156,55 @@ export function BoardView({
     });
   }
 
+  // Reorder columns by their ids (active first, dropped onto target).
+  function reorderColumns(activeId: string, overStatusId: string) {
+    const ordered = [...statuses].sort((a, b) => a.position - b.position);
+    const from = ordered.findIndex((s) => s.id === activeId);
+    const to = ordered.findIndex((s) => s.id === overStatusId);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = arrayMove(ordered, from, to);
+    const updates = next.map((s, i) => ({ id: s.id, position: i }));
+    queryClient.setQueryData<TaskStatus[]>(qk.statuses(projectId), (old) =>
+      (old ?? []).map((s) => {
+        const u = updates.find((x) => x.id === s.id);
+        return u ? { ...s, position: u.position } : s;
+      }),
+    );
+    reorderStatuses(updates).then((res) => {
+      if (res.error) {
+        toast.error(res.error);
+        queryClient.invalidateQueries({ queryKey: qk.statuses(projectId) });
+      }
+    });
+  }
+
   function onDragStart(e: DragStartEvent) {
+    const data = e.active.data.current as { type?: string } | undefined;
+    if (data?.type === "column-sort") {
+      setActiveColumn(statuses.find((s) => s.id === e.active.id) ?? null);
+      return;
+    }
     const t = tasks.find((x) => x.id === e.active.id);
     setActiveTask(t ?? null);
   }
 
   function onDragEnd(e: DragEndEvent) {
     setActiveTask(null);
+    const wasColumn = activeColumn;
+    setActiveColumn(null);
     const { active, over } = e;
     if (!over) return;
+
+    // Column reorder branch.
+    if (wasColumn || (active.data.current as { type?: string })?.type === "column-sort") {
+      const overData = over.data.current as
+        | { type?: string; statusId?: string; task?: TaskWithLabels }
+        | undefined;
+      const overStatusId =
+        overData?.statusId ?? overData?.task?.status_id ?? String(over.id);
+      reorderColumns(String(active.id), overStatusId);
+      return;
+    }
 
     const activeId = String(active.id);
     const moved = tasks.find((t) => t.id === activeId);
@@ -166,12 +212,12 @@ export function BoardView({
 
     // Resolve destination column.
     const overData = over.data.current as
-      | { type: "column"; statusId: string }
+      | { type: "column" | "column-sort"; statusId: string }
       | { type: "task"; task: TaskWithLabels }
       | undefined;
     let destStatus: string | null;
     let overTaskId: string | null = null;
-    if (overData?.type === "column") {
+    if (overData?.type === "column" || overData?.type === "column-sort") {
       destStatus = overData.statusId;
     } else if (overData?.type === "task") {
       destStatus = overData.task.status_id;
@@ -303,21 +349,26 @@ export function BoardView({
         onDragEnd={onDragEnd}
       >
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-6">
-          {statuses.map((status, i) => (
-            <KanbanColumn
-              key={status.id}
-              status={status}
-              tasks={byStatus.map.get(status.id) ?? []}
-              labels={labels}
-              members={members}
-              adding={addingStatusId === status.id}
-              onStartAdd={(id) => setAddingStatusId(id)}
-              onCloseAdd={() => setAddingStatusId(null)}
-              canMoveLeft={i > 0}
-              canMoveRight={i < statuses.length - 1}
-              onMove={(dir) => moveColumn(status.id, dir)}
-            />
-          ))}
+          <SortableContext
+            items={statuses.map((s) => s.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            {statuses.map((status, i) => (
+              <KanbanColumn
+                key={status.id}
+                status={status}
+                tasks={byStatus.map.get(status.id) ?? []}
+                labels={labels}
+                members={members}
+                adding={addingStatusId === status.id}
+                onStartAdd={(id) => setAddingStatusId(id)}
+                onCloseAdd={() => setAddingStatusId(null)}
+                canMoveLeft={i > 0}
+                canMoveRight={i < statuses.length - 1}
+                onMove={(dir) => moveColumn(status.id, dir)}
+              />
+            ))}
+          </SortableContext>
           {writable && <AddColumn count={statuses.length} />}
           {statuses.length === 0 && !writable && (
             <p className="text-sm text-muted-foreground">No board columns yet.</p>
@@ -327,6 +378,16 @@ export function BoardView({
         <DragOverlay>
           {activeTask ? (
             <TaskCard task={activeTask} labels={labels} members={members} overlay />
+          ) : activeColumn ? (
+            <div className="w-64 rounded-[var(--radius)] border bg-card p-2 shadow-lg">
+              <div className="flex items-center gap-2 px-1.5 py-1">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: activeColumn.color ?? "#94a3b8" }}
+                />
+                <span className="text-[13px] font-bold">{activeColumn.name}</span>
+              </div>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>

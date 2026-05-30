@@ -3,8 +3,17 @@
 import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal, Pencil, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  ArrowRight,
+  GripVertical,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -62,8 +71,24 @@ export function KanbanColumn({
   const [name, setName] = useState(status.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [, start] = useTransition();
-  const { setNodeRef, isOver } = useDroppable({
+
+  // Column reordering (horizontal sortable).
+  const {
+    setNodeRef: setSortableRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: status.id,
+    data: { type: "column-sort", statusId: status.id },
+    disabled: !writable || renaming,
+  });
+
+  // Task drop target (distinct id so it doesn't clash with the sortable id).
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `drop-${status.id}`,
     data: { type: "column", statusId: status.id },
   });
 
@@ -94,9 +119,27 @@ export function KanbanColumn({
   }
 
   return (
-    <div className="flex w-64 shrink-0 flex-col">
+    <div
+      ref={setSortableRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      {...attributes}
+      className={cn(
+        "group/col flex w-64 shrink-0 flex-col",
+        isDragging && "opacity-50",
+      )}
+    >
       <div className="mb-2 flex items-center justify-between px-1.5">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {writable && (
+            <button
+              {...listeners}
+              className="-ml-1 flex size-5 cursor-grab items-center justify-center rounded text-muted-foreground opacity-0 transition hover:text-foreground group-hover/col:opacity-100 active:cursor-grabbing"
+              title="Drag to reorder"
+              aria-label="Drag column"
+            >
+              <GripVertical className="size-4" />
+            </button>
+          )}
           <span
             className="size-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: status.color ?? "#94a3b8" }}
@@ -167,7 +210,7 @@ export function KanbanColumn({
       </div>
 
       <div
-        ref={setNodeRef}
+        ref={setDropRef}
         className={cn(
           "flex min-h-24 flex-1 flex-col gap-2 rounded-[var(--radius)] p-1.5 transition-colors",
           isOver
