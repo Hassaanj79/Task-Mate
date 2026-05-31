@@ -128,7 +128,7 @@ export function KanbanColumn({
         isDragging && "opacity-50",
       )}
     >
-      <div className="mb-2 flex items-center justify-between px-1.5">
+      <div className="sticky top-0 z-20 mb-2 flex items-center justify-between bg-background px-1.5 py-1">
         <div className="flex min-w-0 items-center gap-1.5">
           {writable && (
             <button
