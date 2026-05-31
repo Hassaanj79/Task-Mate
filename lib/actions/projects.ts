@@ -192,6 +192,24 @@ export async function addProjectMember(
 ) {
   const user = await requireUser();
   const supabase = await createClient();
+
+  // The project must belong to this org, and the user being granted access
+  // must already be a member of it — no cross-tenant grafting.
+  const { data: project } = await supabase
+    .from("projects")
+    .select("org_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project || project.org_id !== orgId) return { error: "Project not found." };
+
+  const { data: target } = await supabase
+    .from("organization_members")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!target) return { error: "That user is not a member of this workspace." };
+
   const { error } = await supabase
     .from("project_members")
     .insert({ project_id: projectId, user_id: userId, org_id: orgId, added_by: user.id });

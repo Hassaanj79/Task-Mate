@@ -48,13 +48,38 @@ export async function revokeInvite(inviteId: string, orgSlug: string) {
   return { error: null };
 }
 
+const ALL_ROLES: OrgRole[] = ["owner", "admin", "member", "guest"];
+
 export async function changeMemberRole(
   memberId: string,
   orgSlug: string,
   role: OrgRole,
 ) {
-  await requireUser();
+  const user = await requireUser();
+  if (!ALL_ROLES.includes(role)) return { error: "Invalid role." };
   const supabase = await createClient();
+
+  // Look up the target row so we can reason about org + current role.
+  const { data: target } = await supabase
+    .from("organization_members")
+    .select("org_id, role, user_id")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (!target) return { error: "Member not found." };
+
+  // The caller's own role in that org decides what they may grant.
+  const { data: me } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", target.org_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!me) return { error: "Not a member of this workspace." };
+
+  // Only an owner may grant or revoke the owner role.
+  if ((role === "owner" || target.role === "owner") && me.role !== "owner")
+    return { error: "Only an owner can change the owner role." };
+
   const { error } = await supabase
     .from("organization_members")
     .update({ role })

@@ -65,6 +65,8 @@ export async function importTasks(
 ) {
   const user = await requireUser();
   if (rows.length === 0) return { error: "No rows to import." };
+  if (rows.length > 2000)
+    return { error: "Import is limited to 2000 rows at a time." };
 
   const supabase = await createClient();
 

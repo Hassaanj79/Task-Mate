@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { safePath } from "@/lib/safe-path";
 
 // Prefer the actual domain the request came in on; fall back to the env URL.
 async function baseUrl() {
@@ -25,7 +26,7 @@ export async function signInWithPassword(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirect") ?? "/");
+  const redirectTo = safePath(formData.get("redirect"));
 
   if (!email || !password) return { error: "Email and password are required." };
 
@@ -33,7 +34,7 @@ export async function signInWithPassword(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
 
-  redirect(redirectTo || "/");
+  redirect(redirectTo);
 }
 
 export async function signUpWithPassword(
@@ -43,7 +44,7 @@ export async function signUpWithPassword(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const redirectTo = String(formData.get("redirect") ?? "/") || "/";
+  const redirectTo = safePath(formData.get("redirect"));
 
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 6)
@@ -72,7 +73,7 @@ export async function signUpWithPassword(
 }
 
 export async function signInWithGoogle(formData: FormData) {
-  const redirectTo = String(formData.get("redirect") ?? "/");
+  const redirectTo = safePath(formData.get("redirect"));
   const supabase = await createClient();
   const origin = await baseUrl();
 
