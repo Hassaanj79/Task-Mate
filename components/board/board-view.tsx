@@ -348,7 +348,7 @@ export function BoardView({
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       >
-        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-6">
+        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden p-6">
           <SortableContext
             items={statuses.map((s) => s.id)}
             strategy={horizontalListSortingStrategy}

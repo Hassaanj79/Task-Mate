@@ -124,11 +124,11 @@ export function KanbanColumn({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       {...attributes}
       className={cn(
-        "group/col flex w-64 shrink-0 flex-col",
+        "group/col flex h-full min-h-0 w-64 shrink-0 flex-col",
         isDragging && "opacity-50",
       )}
     >
-      <div className="sticky top-0 z-20 mb-2 flex items-center justify-between bg-background px-1.5 py-1">
+      <div className="mb-2 flex shrink-0 items-center justify-between px-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           {writable && (
             <button
@@ -212,7 +212,7 @@ export function KanbanColumn({
       <div
         ref={setDropRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 rounded-[var(--radius)] p-1.5 transition-colors",
+          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-[var(--radius)] p-1.5 transition-colors",
           isOver
             ? "border-[1.5px] border-primary/30 bg-accent"
             : "border-[1.5px] border-transparent",
