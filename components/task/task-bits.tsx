@@ -1,11 +1,49 @@
 "use client";
 
-import { AlertCircle, Calendar } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar,
+  Bug,
+  Sparkles,
+  Bookmark,
+  TrendingUp,
+  CircleCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { priorityMeta } from "@/lib/constants";
+import { priorityMeta, taskTypeMeta } from "@/lib/constants";
 import { dueDateLabel, initials } from "@/lib/format";
-import type { Label as LabelType, Profile, TaskPriority } from "@/lib/database.types";
+import type {
+  Label as LabelType,
+  Profile,
+  TaskPriority,
+  TaskType,
+} from "@/lib/database.types";
+
+const TYPE_ICONS: Record<TaskType, LucideIcon> = {
+  task: CircleCheck,
+  bug: Bug,
+  feature: Sparkles,
+  story: Bookmark,
+  improvement: TrendingUp,
+};
+
+export function TaskTypeIcon({
+  type,
+  className,
+}: {
+  type: TaskType;
+  className?: string;
+}) {
+  const Icon = TYPE_ICONS[type] ?? CircleCheck;
+  return (
+    <Icon
+      className={className ?? "size-4"}
+      style={{ color: taskTypeMeta(type).color }}
+    />
+  );
+}
 
 const PRIORITY_BARS: Record<TaskPriority, number> = {
   urgent: 3,

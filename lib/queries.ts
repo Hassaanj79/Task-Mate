@@ -20,7 +20,7 @@ export const qk = {
   taskLabels: (projectId: string) => ["task_labels", projectId] as const,
 };
 
-export type TaskWithLabels = Task & { label_ids: string[] };
+export type TaskWithLabels = Task & { label_ids: string[]; comment_count: number };
 
 export async function fetchStatuses(projectId: string): Promise<TaskStatus[]> {
   const supabase = createClient();
@@ -53,7 +53,24 @@ export async function fetchTasks(projectId: string): Promise<TaskWithLabels[]> {
     arr.push(l.label_id);
     byTask.set(l.task_id, arr);
   }
-  return (tasks ?? []).map((t) => ({ ...t, label_ids: byTask.get(t.id) ?? [] }));
+
+  // Comment counts for this project's tasks (one batched query).
+  const ids = (tasks ?? []).map((t) => t.id);
+  const counts = new Map<string, number>();
+  if (ids.length > 0) {
+    const { data: cmts } = await supabase
+      .from("comments")
+      .select("task_id")
+      .in("task_id", ids);
+    for (const c of cmts ?? [])
+      counts.set(c.task_id, (counts.get(c.task_id) ?? 0) + 1);
+  }
+
+  return (tasks ?? []).map((t) => ({
+    ...t,
+    label_ids: byTask.get(t.id) ?? [],
+    comment_count: counts.get(t.id) ?? 0,
+  }));
 }
 
 export async function fetchTask(taskId: string): Promise<TaskWithLabels | null> {
@@ -64,7 +81,15 @@ export async function fetchTask(taskId: string): Promise<TaskWithLabels | null> 
   ]);
   if (error) throw error;
   if (!task) return null;
-  return { ...task, label_ids: (links ?? []).map((l) => l.label_id) };
+  const { count } = await supabase
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("task_id", taskId);
+  return {
+    ...task,
+    label_ids: (links ?? []).map((l) => l.label_id),
+    comment_count: count ?? 0,
+  };
 }
 
 export async function fetchSubtasks(parentId: string): Promise<Task[]> {

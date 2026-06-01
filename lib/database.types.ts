@@ -3,6 +3,7 @@
 
 export type OrgRole = "owner" | "admin" | "member" | "guest";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
+export type TaskType = "task" | "bug" | "feature" | "story" | "improvement";
 export type InviteStatus = "pending" | "accepted" | "revoked";
 
 // Tiptap document JSON (loosely typed)
@@ -102,6 +103,7 @@ export type Task = {
   parent_id: string | null;
   title: string;
   description: RichText;
+  type: TaskType;
   priority: TaskPriority;
   assignee_id: string | null;
   due_date: string | null;
@@ -265,6 +267,7 @@ export type Database = {
           | "status_id"
           | "parent_id"
           | "description"
+          | "type"
           | "priority"
           | "assignee_id"
           | "due_date"

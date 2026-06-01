@@ -1,4 +1,4 @@
-import type { TaskPriority } from "@/lib/database.types";
+import type { TaskPriority, TaskType } from "@/lib/database.types";
 
 export const PRIORITIES: {
   value: TaskPriority;
@@ -22,6 +22,24 @@ export const PRIORITY_RANK: Record<TaskPriority, number> = {
 
 export function priorityMeta(p: TaskPriority) {
   return PRIORITIES.find((x) => x.value === p) ?? PRIORITIES[4];
+}
+
+// Issue types (Jira-style), shown as a badge on each task.
+export const TASK_TYPES: {
+  value: TaskType;
+  label: string;
+  icon: string; // lucide icon name
+  color: string;
+}[] = [
+  { value: "task", label: "Task", icon: "circle-check", color: "#3b82f6" },
+  { value: "bug", label: "Bug", icon: "bug", color: "#ef4444" },
+  { value: "feature", label: "Feature", icon: "sparkles", color: "#a855f7" },
+  { value: "story", label: "Story", icon: "bookmark", color: "#22c55e" },
+  { value: "improvement", label: "Improvement", icon: "trending-up", color: "#f59e0b" },
+];
+
+export function taskTypeMeta(t: TaskType) {
+  return TASK_TYPES.find((x) => x.value === t) ?? TASK_TYPES[0];
 }
 
 // Default board columns seeded for every new project.

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { POSITION_STEP } from "@/lib/constants";
 import { emitEvent } from "@/lib/automation/engine";
-import type { TaskPriority } from "@/lib/database.types";
+import type { TaskPriority, TaskType } from "@/lib/database.types";
 
 async function logActivity(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -76,6 +76,7 @@ export async function updateTaskFields(
   patch: {
     title?: string;
     description?: unknown;
+    type?: TaskType;
     priority?: TaskPriority;
     assignee_id?: string | null;
     due_date?: string | null;

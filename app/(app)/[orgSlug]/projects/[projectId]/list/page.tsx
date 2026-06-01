@@ -32,9 +32,22 @@ export default async function ListPage({
     arr.push(l.label_id);
     byTask.set(l.task_id, arr);
   }
+
+  const ids = (tasks ?? []).map((t) => t.id);
+  const counts = new Map<string, number>();
+  if (ids.length > 0) {
+    const { data: cmts } = await supabase
+      .from("comments")
+      .select("task_id")
+      .in("task_id", ids);
+    for (const c of cmts ?? [])
+      counts.set(c.task_id, (counts.get(c.task_id) ?? 0) + 1);
+  }
+
   const initialTasks: TaskWithLabels[] = (tasks ?? []).map((t) => ({
     ...t,
     label_ids: byTask.get(t.id) ?? [],
+    comment_count: counts.get(t.id) ?? 0,
   }));
 
   return <ListView initialStatuses={statuses ?? []} initialTasks={initialTasks} />;
