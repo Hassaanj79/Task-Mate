@@ -1,17 +1,47 @@
 import Mention from "@tiptap/extension-mention";
+import { mergeAttributes } from "@tiptap/core";
 
 export type MentionMember = { id: string; label: string };
 
 // Tiptap Mention with a lightweight vanilla popup (no tippy dependency).
 export function mentionExtension(members: MentionMember[]) {
+  const labelFor = (attrs: { id?: string | null; label?: string | null }) =>
+    attrs.label ??
+    members.find((m) => m.id === attrs.id)?.label ??
+    attrs.id ??
+    "someone";
+
   return Mention.configure({
     HTMLAttributes: { class: "tm-mention" },
+    // Render "@Name", falling back to a members lookup for older nodes that
+    // were saved without a label attr.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    renderHTML: ({ options, node }: any) => [
+      "span",
+      mergeAttributes({ "data-type": "mention" }, options.HTMLAttributes),
+      `@${labelFor(node.attrs)}`,
+    ],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    renderText: ({ node }: any) => `@${labelFor(node.attrs)}`,
     suggestion: {
       char: "@",
       items: ({ query }: { query: string }) =>
         members
           .filter((m) => m.label.toLowerCase().includes(query.toLowerCase()))
           .slice(0, 6),
+      // Overriding `suggestion` drops Mention's built-in command, so the node
+      // would be inserted with no `label` attr (renders "@null"). Re-supply it.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      command: ({ editor, range, props }: any) => {
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(range, [
+            { type: "mention", attrs: { id: props.id, label: props.label } },
+            { type: "text", text: " " },
+          ])
+          .run();
+      },
       render: () => {
         let el: HTMLDivElement | null = null;
         let items: MentionMember[] = [];
