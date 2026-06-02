@@ -18,6 +18,10 @@ const SUPABASE_ANON_KEY =
 const EMAIL = process.env.TASKMATE_EMAIL;
 const PASSWORD = process.env.TASKMATE_PASSWORD;
 const ORG_SLUG = process.env.TASKMATE_ORG || null; // optional: pin one workspace
+// Optional: app base URL (e.g. https://task-mate-henna.vercel.app). When set,
+// writes go through /api/mcp so the automation engine fires. When unset, writes
+// hit the database directly (faster, but automations don't run).
+const API_URL = (process.env.TASKMATE_API_URL || "").replace(/\/$/, "") || null;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !EMAIL || !PASSWORD) {
   console.error(
@@ -59,7 +63,8 @@ async function init() {
     ORG = ORG_SLUG ? orgs.find((o) => o.slug === ORG_SLUG) || orgs[0] : orgs[0];
   }
   console.error(
-    `[taskmate-mcp] Signed in as ${ME.email}; workspace: ${ORG ? ORG.slug : "(none)"}`,
+    `[taskmate-mcp] Signed in as ${ME.email}; workspace: ${ORG ? ORG.slug : "(none)"}; ` +
+      `writes: ${API_URL ? "via API (automations fire)" : "direct DB"}`,
   );
 }
 
@@ -71,6 +76,26 @@ const err = (msg) => ({
   content: [{ type: "text", text: `Error: ${msg}` }],
   isError: true,
 });
+
+// POST a write to the app's /api/mcp endpoint (fires automations). Uses the
+// current session JWT. Throws on non-2xx.
+async function apiCall(action, args) {
+  const { data } = await supabase.auth.getSession();
+  const tok = data.session?.access_token;
+  const res = await fetch(`${API_URL}/api/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+    body: JSON.stringify({ action, args }),
+  });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    json = { error: `HTTP ${res.status}` };
+  }
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
 
 function plainToDoc(text) {
   const t = (text || "").trim();
@@ -284,6 +309,16 @@ server.tool(
   },
   async (a) => {
     if (!ORG) return err("No active workspace.");
+    const args = { ...a };
+    if (a.assign_to_me) args.assignee_id = ME.id;
+    delete args.assign_to_me;
+    if (API_URL) {
+      try {
+        return ok(await apiCall("create_task", args));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
     const row = {
       org_id: ORG.id,
       project_id: a.project_id,
@@ -322,6 +357,18 @@ server.tool(
     due_date: z.string().nullable().optional(),
   },
   async (a) => {
+    if (API_URL) {
+      const args = { task_id: a.task_id };
+      for (const k of ["title", "priority", "type", "status_id", "assignee_id", "due_date", "description"])
+        if (a[k] !== undefined) args[k] = a[k];
+      if (a.assign_to_me) args.assignee_id = ME.id;
+      if (Object.keys(args).length <= 1) return err("Nothing to update.");
+      try {
+        return ok(await apiCall("update_task", args));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
     const patch = {};
     if (a.title !== undefined) patch.title = a.title;
     if (a.priority !== undefined) patch.priority = a.priority;
@@ -355,6 +402,14 @@ server.tool(
       statuses.find((s) => DONE_RE.test(s.name)) ||
       statuses[statuses.length - 1]; // fall back to last column
     if (!done) return err("No statuses in this project to move to.");
+    if (API_URL) {
+      try {
+        await apiCall("update_task", { task_id, status_id: done.id });
+        return ok({ completed: true, moved_to: done.name });
+      } catch (e) {
+        return err(e.message);
+      }
+    }
     const { error: uErr } = await supabase
       .from("tasks")
       .update({ status_id: done.id })
@@ -370,6 +425,13 @@ server.tool(
   { task_id: z.string(), text: z.string() },
   async ({ task_id, text }) => {
     if (!ORG) return err("No active workspace.");
+    if (API_URL) {
+      try {
+        return ok(await apiCall("add_comment", { task_id, text }));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
     const { data, error } = await supabase
       .from("comments")
       .insert({
@@ -382,6 +444,112 @@ server.tool(
       .single();
     if (error) return err(error.message);
     return ok({ id: data.id, added: true });
+  },
+);
+
+server.tool(
+  "list_overdue",
+  "List incomplete tasks whose due date has passed, highest priority first.",
+  { only_mine: z.boolean().optional().describe("Default true") },
+  async ({ only_mine }) => {
+    const mine = only_mine !== false;
+    let q = supabase
+      .from("tasks")
+      .select("*")
+      .is("parent_id", null)
+      .is("archived_at", null)
+      .not("due_date", "is", null)
+      .lt("due_date", new Date().toISOString());
+    if (ORG) q = q.eq("org_id", ORG.id);
+    if (mine) q = q.eq("assignee_id", ME.id);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    const projectIds = [...new Set((data || []).map((t) => t.project_id))];
+    const sMap = {};
+    for (const pid of projectIds) sMap[pid] = await statusMap(pid);
+    const rows = (data || [])
+      .map((t) => shapeTask(t, sMap[t.project_id] || []))
+      .filter((r) => !r.completed)
+      .sort(sortByPriority);
+    return ok({ count: rows.length, tasks: rows });
+  },
+);
+
+server.tool(
+  "list_subtasks",
+  "List subtasks of a task.",
+  { task_id: z.string() },
+  async ({ task_id }) => {
+    const { data: parent } = await supabase
+      .from("tasks")
+      .select("project_id")
+      .eq("id", task_id)
+      .maybeSingle();
+    if (!parent) return err("Parent task not found (or no access).");
+    const statuses = await statusMap(parent.project_id);
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("parent_id", task_id)
+      .is("archived_at", null)
+      .order("position", { ascending: true });
+    if (error) return err(error.message);
+    return ok((data || []).map((t) => shapeTask(t, statuses)));
+  },
+);
+
+server.tool(
+  "create_subtask",
+  "Create a subtask under a parent task.",
+  {
+    parent_task_id: z.string(),
+    title: z.string(),
+    priority: z.enum(PRIORITIES).optional(),
+    type: z.enum(TASK_TYPES).optional(),
+    assign_to_me: z.boolean().optional(),
+    due_date: z.string().optional(),
+  },
+  async (a) => {
+    const { data: parent } = await supabase
+      .from("tasks")
+      .select("project_id, org_id")
+      .eq("id", a.parent_task_id)
+      .maybeSingle();
+    if (!parent) return err("Parent task not found (or no access).");
+    const args = {
+      project_id: parent.project_id,
+      parent_id: a.parent_task_id,
+      title: a.title,
+    };
+    if (a.priority) args.priority = a.priority;
+    if (a.type) args.type = a.type;
+    if (a.assign_to_me) args.assignee_id = ME.id;
+    if (a.due_date) args.due_date = a.due_date;
+    if (API_URL) {
+      try {
+        return ok(await apiCall("create_task", args));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        org_id: parent.org_id,
+        project_id: parent.project_id,
+        parent_id: a.parent_task_id,
+        title: a.title,
+        created_by: ME.id,
+        position: Date.now(),
+        ...(a.priority ? { priority: a.priority } : {}),
+        ...(a.type ? { type: a.type } : {}),
+        ...(a.assign_to_me ? { assignee_id: ME.id } : {}),
+        ...(a.due_date ? { due_date: a.due_date } : {}),
+      })
+      .select("id")
+      .single();
+    if (error) return err(error.message);
+    return ok({ id: data.id, created: true });
   },
 );
 

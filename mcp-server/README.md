@@ -26,6 +26,9 @@ assignee, comment, and mark complete.
 | `update_task` | Change priority/type/status/assignee/title/description/due |
 | `complete_task` | Move the task to a "Done"-type column |
 | `add_comment` | Add a plain-text comment |
+| `list_overdue` | Incomplete tasks past their due date |
+| `list_subtasks` | Subtasks of a task |
+| `create_subtask` | Create a subtask under a parent |
 
 ## Setup
 
@@ -91,10 +94,18 @@ Tell Claude:
 > add a short comment on what you did, then `complete_task`. Stop when there
 > are no incomplete tasks.
 
-## Limits (V1)
+## Automations
 
-- Writes go straight to the database, so they **don't fire the app's
-  automations** (the workflow engine runs in the web app's request path).
+Set `TASKMATE_API_URL` to your app URL (e.g.
+`https://task-mate-henna.vercel.app`) to route writes through `/api/mcp`. Then
+creating/updating tasks, completing, and commenting **fire the automation
+engine** — same as actions in the web app. The endpoint authenticates with your
+JWT, so RLS still applies. Leave it unset to write straight to the DB (faster,
+but automations don't run).
+
+## Limits
+
 - `complete_task` picks the first column whose name matches
   `done|complete|closed|resolved|shipped|finished`, else the last column.
 - "Mine" = tasks where you are the assignee.
+- Reads always hit the DB directly (fast); only writes use the API.
