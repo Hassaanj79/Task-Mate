@@ -152,8 +152,26 @@ export async function POST(request: Request) {
           .select("id")
           .single();
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+        // Notify @mentioned members (skip self).
+        const mentionIds = Array.isArray(a.mention_ids)
+          ? [...new Set(a.mention_ids.map(String))].filter((id) => id && id !== userId)
+          : [];
+        if (mentionIds.length) {
+          await supabase.from("notifications").insert(
+            mentionIds.map((rid) => ({
+              org_id: t.org_id,
+              recipient_id: rid,
+              actor_id: userId,
+              type: "mention",
+              task_id: taskId,
+              comment_id: c.id,
+              body: text.slice(0, 140),
+            })) as never,
+          );
+        }
         await emitEvent(supabase, { taskId, type: "comment_added", actorId: userId });
-        return NextResponse.json({ id: c.id, added: true });
+        return NextResponse.json({ id: c.id, added: true, notified: mentionIds.length });
       }
 
       default:

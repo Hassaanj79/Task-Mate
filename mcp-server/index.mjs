@@ -421,17 +421,27 @@ server.tool(
 
 server.tool(
   "add_comment",
-  "Add a plain-text comment to a task.",
-  { task_id: z.string(), text: z.string() },
-  async ({ task_id, text }) => {
+  "Add a plain-text comment to a task. Optionally @mention members by their user id (use list_members to get ids) to notify them.",
+  {
+    task_id: z.string(),
+    text: z.string(),
+    mention_user_ids: z.array(z.string()).optional(),
+  },
+  async ({ task_id, text, mention_user_ids }) => {
     if (!ORG) return err("No active workspace.");
+    const mentions = mention_user_ids ?? [];
     if (API_URL) {
       try {
-        return ok(await apiCall("add_comment", { task_id, text }));
+        return ok(await apiCall("add_comment", { task_id, text, mention_ids: mentions }));
       } catch (e) {
         return err(e.message);
       }
     }
+    const { data: t } = await supabase
+      .from("tasks")
+      .select("org_id")
+      .eq("id", task_id)
+      .maybeSingle();
     const { data, error } = await supabase
       .from("comments")
       .insert({
@@ -443,7 +453,99 @@ server.tool(
       .select("id")
       .single();
     if (error) return err(error.message);
-    return ok({ id: data.id, added: true });
+    const recips = [...new Set(mentions)].filter((id) => id && id !== ME.id);
+    if (recips.length && t) {
+      await supabase.from("notifications").insert(
+        recips.map((rid) => ({
+          org_id: t.org_id,
+          recipient_id: rid,
+          actor_id: ME.id,
+          type: "mention",
+          task_id,
+          comment_id: data.id,
+          body: text.slice(0, 140),
+        })),
+      );
+    }
+    return ok({ id: data.id, added: true, notified: recips.length });
+  },
+);
+
+server.tool(
+  "list_members",
+  "List members of the active workspace (id, name, email, role) — use ids for assignment and @mentions.",
+  {},
+  async () => {
+    if (!ORG) return err("No active workspace.");
+    const { data: mem, error } = await supabase
+      .from("organization_members")
+      .select("user_id, role")
+      .eq("org_id", ORG.id);
+    if (error) return err(error.message);
+    const ids = (mem || []).map((m) => m.user_id);
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const byId = Object.fromEntries((profs || []).map((p) => [p.id, p]));
+    return ok(
+      (mem || []).map((m) => ({
+        id: m.user_id,
+        name: byId[m.user_id]?.full_name ?? null,
+        email: byId[m.user_id]?.email ?? null,
+        role: m.role,
+        is_me: m.user_id === ME.id,
+      })),
+    );
+  },
+);
+
+server.tool(
+  "set_due",
+  "Set or clear a task's due date.",
+  {
+    task_id: z.string(),
+    due_date: z.string().optional().describe("ISO timestamp; omit with clear=true to remove"),
+    clear: z.boolean().optional(),
+  },
+  async ({ task_id, due_date, clear }) => {
+    const value = clear ? null : due_date;
+    if (value === undefined) return err("Provide due_date or clear=true.");
+    if (API_URL) {
+      try {
+        return ok(await apiCall("update_task", { task_id, due_date: value }));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
+    const { error } = await supabase.from("tasks").update({ due_date: value }).eq("id", task_id);
+    if (error) return err(error.message);
+    return ok({ updated: true });
+  },
+);
+
+server.tool(
+  "assign_to",
+  "Assign a task to a user, to me, or unassign.",
+  {
+    task_id: z.string(),
+    user_id: z.string().optional(),
+    me: z.boolean().optional(),
+    unassign: z.boolean().optional(),
+  },
+  async ({ task_id, user_id, me, unassign }) => {
+    const value = unassign ? null : me ? ME.id : user_id;
+    if (value === undefined) return err("Provide user_id, me=true, or unassign=true.");
+    if (API_URL) {
+      try {
+        return ok(await apiCall("update_task", { task_id, assignee_id: value }));
+      } catch (e) {
+        return err(e.message);
+      }
+    }
+    const { error } = await supabase.from("tasks").update({ assignee_id: value }).eq("id", task_id);
+    if (error) return err(error.message);
+    return ok({ updated: true });
   },
 );
 
